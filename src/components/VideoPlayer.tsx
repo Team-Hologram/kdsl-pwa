@@ -1,9 +1,5 @@
 'use client';
-// src/components/VideoPlayer.tsx
-// Full custom HTML5 video player with:
-// - Quality switching, subtitle selection
-// - Fullscreen → landscape on iPhone PWA
-// - iOS-compatible controls
+// src/components/VideoPlayer.tsx — Android-style design
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { VideoQuality, Subtitle } from '@/lib/types';
@@ -18,15 +14,18 @@ interface Props {
 }
 
 function formatTime(s: number) {
+  if (!s || isNaN(s)) return '0:00';
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onBack, qualitySelectionEnabled = true }: Props) {
+export default function VideoPlayer({
+  videoUrl, qualities, subtitles, title, onBack, qualitySelectionEnabled = true,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -39,17 +38,18 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
   const [selectedSub, setSelectedSub] = useState<Subtitle | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
-  // Auto-hide controls
-  const resetControlsTimer = useCallback(() => {
+  const resetHideTimer = useCallback(() => {
     setShowControls(true);
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => setShowControls(false), 3500);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setShowControls(false), 3500);
   }, []);
 
-  useEffect(() => { resetControlsTimer(); }, []);
+  useEffect(() => { resetHideTimer(); }, []);
 
-  // Fullscreen change
+  // Fullscreen change listener
   useEffect(() => {
     const onFS = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFS);
@@ -59,33 +59,37 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); }
-    else { v.pause(); setPlaying(false); }
-    resetControlsTimer();
+    if (v.paused) { v.play(); }
+    else { v.pause(); }
+    resetHideTimer();
   };
 
   const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = videoRef.current;
     if (!v) return;
     v.currentTime = Number(e.target.value);
-    resetControlsTimer();
+    setCurrentTime(Number(e.target.value));
+    resetHideTimer();
+  };
+
+  const skip = (secs: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + secs));
+    resetHideTimer();
   };
 
   const toggleFullscreen = async () => {
     const v = videoRef.current;
     const el = containerRef.current;
-    if (!el || !v) return;
-
-    // iOS Safari uses webkitEnterFullscreen on the video element directly
+    if (!v || !el) return;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
       if ((v as any).webkitDisplayingFullscreen) {
         (v as any).webkitExitFullscreen?.();
-        try { await (screen.orientation as any).lock?.('portrait-primary'); } catch {}
         setIsFullscreen(false);
       } else {
         (v as any).webkitEnterFullscreen?.();
-        try { await (screen.orientation as any).lock?.('landscape'); } catch {}
         setIsFullscreen(true);
       }
     } else {
@@ -97,74 +101,93 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
         } catch {}
       } else {
         document.exitFullscreen();
-        try { await (screen.orientation as any).lock?.('portrait-primary').catch(() => {}); } catch {}
         setIsFullscreen(false);
       }
     }
-    resetControlsTimer();
+    resetHideTimer();
   };
 
   const handleQualityChange = (url: string) => {
     const v = videoRef.current;
     if (!v) return;
     const t = v.currentTime;
-    const wasPlaying = !v.paused;
+    const was = !v.paused;
     setSelectedQuality(url);
-    // Re-set src preserves currentTime via onLoadedMetadata
     v.src = url;
+    v.load();
     v.currentTime = t;
-    if (wasPlaying) v.play();
+    if (was) v.play();
     setShowQuality(false);
-    resetControlsTimer();
+    resetHideTimer();
   };
 
   const handleSubChange = (sub: Subtitle | null) => {
     setSelectedSub(sub);
     const v = videoRef.current;
-    if (!v) return;
-    for (let i = 0; i < v.textTracks.length; i++) {
-      v.textTracks[i].mode = 'disabled';
-    }
-    if (sub) {
+    if (v) {
       for (let i = 0; i < v.textTracks.length; i++) {
-        if (v.textTracks[i].label === sub.label) {
-          v.textTracks[i].mode = 'showing';
-          break;
+        v.textTracks[i].mode = 'disabled';
+      }
+      if (sub) {
+        for (let i = 0; i < v.textTracks.length; i++) {
+          if (v.textTracks[i].label === sub.label) {
+            v.textTracks[i].mode = 'showing';
+            break;
+          }
         }
       }
     }
     setShowSubs(false);
-    resetControlsTimer();
+    resetHideTimer();
   };
+
+  const currentQualityLabel = qualities.find((q) => q.url === selectedQuality)?.quality ?? 'HD';
 
   return (
     <div
       ref={containerRef}
       style={{
-        position: 'relative', width: '100%', height: isFullscreen ? '100vw' : '56.25vw',
-        maxHeight: isFullscreen ? '100vh' : undefined,
+        position: 'relative', width: '100%',
+        height: isFullscreen ? '100vw' : '100dvh',
         background: '#000', overflow: 'hidden',
-        touchAction: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
-      onClick={() => { setShowQuality(false); setShowSubs(false); resetControlsTimer(); }}
+      // Tap anywhere to toggle controls
+      onClick={() => {
+        if (showQuality || showSubs) { setShowQuality(false); setShowSubs(false); return; }
+        if (showControls) {
+          setShowControls(false);
+          if (hideTimer.current) clearTimeout(hideTimer.current);
+        } else {
+          resetHideTimer();
+        }
+      }}
     >
-      {/* Video element */}
+      {/* ── VIDEO ELEMENT ── */}
       <video
         ref={videoRef}
         src={selectedQuality || videoUrl}
-        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
         playsInline
-        preload="metadata"
+        preload="auto"
         muted={muted}
+        onLoadStart={() => setIsLoading(true)}
+        onCanPlay={() => setIsLoading(false)}
+        onWaiting={() => setIsLoading(true)}
+        onPlaying={() => { setIsLoading(false); setHasError(false); }}
         onTimeUpdate={(e) => {
           const v = e.currentTarget;
           setCurrentTime(v.currentTime);
           if (v.buffered.length > 0) setBuffered(v.buffered.end(v.buffered.length - 1));
         }}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onLoadedMetadata={(e) => { setDuration(e.currentTarget.duration); setIsLoading(false); }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onError={(e) => console.error('[VideoPlayer] Error:', e.currentTarget.error)}
+        onError={(e) => {
+          console.error('[VideoPlayer] Error:', e.currentTarget.error?.message);
+          setIsLoading(false);
+          setHasError(true);
+        }}
       >
         {subtitles.map((sub) => (
           <track
@@ -173,132 +196,269 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
             src={sub.url}
             label={sub.label}
             srcLang={sub.language}
-            default={sub.language === 'si' || (!selectedSub && sub.language === 'en')}
+            default={sub.language === 'si'}
           />
         ))}
       </video>
 
-      {/* Controls overlay */}
+      {/* ── LOADING SPINNER ── */}
+      {isLoading && !hasError && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 5,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            border: '3px solid rgba(255,255,255,0.15)',
+            borderTopColor: 'var(--primary)',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+        </div>
+      )}
+
+      {/* ── ERROR STATE ── */}
+      {hasError && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 5,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 12,
+        }}>
+          <div style={{ fontSize: 36 }}>⚠️</div>
+          <p style={{ color: '#fff', fontSize: 14 }}>Video failed to load</p>
+          <button
+            style={{ background: 'var(--primary)', color: '#000', padding: '8px 20px', borderRadius: 8, fontWeight: 700 }}
+            onClick={(e) => { e.stopPropagation(); setHasError(false); setIsLoading(true); videoRef.current?.load(); }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ── CONTROLS OVERLAY ── */}
       <div
         style={{
-          position: 'absolute', inset: 0,
-          background: showControls ? 'linear-gradient(rgba(0,0,0,0.4) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.7) 100%)' : 'transparent',
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          position: 'absolute', inset: 0, zIndex: 10,
+          display: 'flex', flexDirection: 'column',
+          justifyContent: 'space-between',
+          background: showControls
+            ? 'linear-gradient(rgba(0,0,0,0.55) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.65) 100%)'
+            : 'transparent',
           opacity: showControls ? 1 : 0,
           transition: 'opacity 0.3s, background 0.3s',
           pointerEvents: showControls ? 'all' : 'none',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
-          <button onClick={onBack} style={{ color: '#fff', padding: 4 }}>
-            <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#fff' }} className="line-clamp-1">{title}</div>
-          {/* Mute */}
-          <button onClick={() => setMuted((m) => !m)} style={{ color: '#fff', padding: 4 }}>
-            {muted
-              ? <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 5L6 9H2v6h4l5 4V5z" strokeLinecap="round" strokeLinejoin="round"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-              : <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 5L6 9H2v6h4l5 4V5z" strokeLinecap="round" strokeLinejoin="round"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" strokeLinecap="round"/></svg>
-            }
-          </button>
-        </div>
-
-        {/* Center play button */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 32 }}>
-          {/* Rewind 10s */}
-          <button onClick={() => { if (videoRef.current) videoRef.current.currentTime -= 10; resetControlsTimer(); }} style={{ color: '#fff', padding: 8 }}>
-            <svg width={32} height={32} viewBox="0 0 24 24" fill="currentColor">
-              <path d="M11.5 12l-8.5 5V7l8.5 5zm10 0l-8.5 5V7l8.5 5z" opacity={0.6}/>
-            </svg>
-          </button>
-          {/* Play/Pause */}
+        {/* ── TOP BAR ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '48px 16px 16px' }}>
+          {/* Circle back button */}
           <button
-            onClick={togglePlay}
+            onClick={(e) => { e.stopPropagation(); onBack(); }}
             style={{
-              width: 64, height: 64, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
-              border: '2px solid rgba(255,255,255,0.4)',
-              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 40, height: 40, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(8px)',
+              border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', flexShrink: 0,
             }}
           >
-            {playing
-              ? <svg width={28} height={28} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-              : <svg width={28} height={28} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            }
-          </button>
-          {/* Forward 10s */}
-          <button onClick={() => { if (videoRef.current) videoRef.current.currentTime += 10; resetControlsTimer(); }} style={{ color: '#fff', padding: 8 }}>
-            <svg width={32} height={32} viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12.5 12L21 7v10l-8.5-5zm-10 0L11 7v10l-8.5-5z" opacity={0.6}/>
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
             </svg>
+          </button>
+          <span
+            className="line-clamp-1"
+            style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#fff' }}
+          >
+            {title}
+          </span>
+          {/* Mute */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+            style={{ color: 'rgba(255,255,255,0.8)', padding: 8, background: 'none', border: 'none' }}
+          >
+            {muted
+              ? <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 5L6 9H2v6h4l5 4V5z" strokeLinecap="round" strokeLinejoin="round"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+              : <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 5L6 9H2v6h4l5 4V5z" strokeLinecap="round" strokeLinejoin="round"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" strokeLinecap="round"/></svg>
+            }
           </button>
         </div>
 
-        {/* Bottom controls */}
-        <div style={{ padding: '0 16px 12px' }}>
-          {/* Seek bar */}
-          <div style={{ position: 'relative', marginBottom: 8 }}>
-            {/* Buffered */}
-            <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', height: 3, width: `${duration ? (buffered / duration) * 100 : 0}%`, background: 'rgba(255,255,255,0.3)', borderRadius: 2, pointerEvents: 'none' }} />
-            <input
-              type="range" min={0} max={duration || 100} step={0.1} value={currentTime}
-              onChange={seek}
-              style={{ width: '100%', height: 3, accentColor: 'var(--primary)', cursor: 'pointer', background: 'transparent', position: 'relative', zIndex: 1 }}
-            />
+        {/* ── CENTER CONTROLS ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+            {/* Rewind */}
+            <button
+              onClick={(e) => { e.stopPropagation(); skip(-10); }}
+              style={{ color: 'rgba(255,255,255,0.85)', background: 'none', border: 'none', padding: 8 }}
+            >
+              <svg width={36} height={36} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.5 12l-8.5 5V7l8.5 5zm10 0l-8.5 5V7l8.5 5z"/>
+              </svg>
+            </button>
+
+            {/* Play / Pause — primary colored */}
+            <button
+              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+              style={{
+                width: 68, height: 68, borderRadius: '50%',
+                background: 'transparent', border: 'none',
+                color: 'var(--primary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                filter: 'drop-shadow(0 0 12px rgba(0,217,255,0.6))',
+              }}
+            >
+              {playing
+                ? <svg width={52} height={52} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                : <svg width={52} height={52} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              }
+            </button>
+
+            {/* Forward */}
+            <button
+              onClick={(e) => { e.stopPropagation(); skip(10); }}
+              style={{ color: 'rgba(255,255,255,0.85)', background: 'none', border: 'none', padding: 8 }}
+            >
+              <svg width={36} height={36} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.5 12L21 7v10l-8.5-5zm-10 0L11 7v10l-8.5-5z"/>
+              </svg>
+            </button>
           </div>
 
-          {/* Time + controls row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontVariantNumeric: 'tabular-nums' }}>
-              {formatTime(currentTime)} / {formatTime(duration)}
+          {/* Branding */}
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)', letterSpacing: 1 }}>
+            KDrama SL
+          </span>
+        </div>
+
+        {/* ── BOTTOM: PROGRESS + CONTROLS ── */}
+        <div style={{ padding: '0 16px 32px' }}>
+          {/* Time + seek bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontVariantNumeric: 'tabular-nums', minWidth: 36 }}>
+              {formatTime(currentTime)}
             </span>
-            <div style={{ display: 'flex', gap: 16 }}>
-              {/* Subtitles */}
-              {subtitles.length > 0 && (
-                <button onClick={(e) => { e.stopPropagation(); setShowSubs((s) => !s); setShowQuality(false); }} style={{ fontSize: 12, color: selectedSub ? 'var(--primary)' : 'rgba(255,255,255,0.7)', fontWeight: 600, padding: 4 }}>
-                  CC
-                </button>
-              )}
-              {/* Quality */}
-              {qualitySelectionEnabled && qualities.length > 1 && (
-                <button onClick={(e) => { e.stopPropagation(); setShowQuality((q) => !q); setShowSubs(false); }} style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600, padding: 4 }}>
-                  {qualities.find((q) => q.url === selectedQuality)?.quality ?? 'HD'}
-                </button>
-              )}
-              {/* Fullscreen */}
-              <button onClick={toggleFullscreen} style={{ color: 'rgba(255,255,255,0.8)', padding: 4 }}>
-                {isFullscreen
-                  ? <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/></svg>
-                  : <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                }
-              </button>
+
+            {/* Custom seek bar */}
+            <div style={{ flex: 1, position: 'relative', height: 20, display: 'flex', alignItems: 'center' }}>
+              {/* Track bg */}
+              <div style={{ position: 'absolute', left: 0, right: 0, height: 3, background: 'rgba(255,255,255,0.2)', borderRadius: 2 }} />
+              {/* Buffered */}
+              <div style={{
+                position: 'absolute', left: 0, height: 3, borderRadius: 2,
+                width: `${duration ? (buffered / duration) * 100 : 0}%`,
+                background: 'rgba(255,255,255,0.35)',
+              }} />
+              {/* Progress */}
+              <div style={{
+                position: 'absolute', left: 0, height: 3, borderRadius: 2,
+                width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                background: 'var(--primary)',
+              }} />
+              <input
+                type="range" min={0} max={duration || 100} step={0.5} value={currentTime}
+                onChange={seek}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute', left: 0, right: 0, width: '100%',
+                  height: '100%', opacity: 0, cursor: 'pointer', zIndex: 1,
+                }}
+              />
+              {/* Thumb indicator */}
+              <div style={{
+                position: 'absolute',
+                left: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                transform: 'translateX(-50%)',
+                width: 14, height: 14, borderRadius: '50%',
+                background: 'var(--primary)',
+                boxShadow: '0 0 6px rgba(0,217,255,0.8)',
+                pointerEvents: 'none',
+              }} />
             </div>
+
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontVariantNumeric: 'tabular-nums', minWidth: 36, textAlign: 'right' }}>
+              {formatTime(duration)}
+            </span>
+          </div>
+
+          {/* Bottom pill controls */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            {/* Quality */}
+            {qualitySelectionEnabled && qualities.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowQuality((q) => !q); setShowSubs(false); }}
+                style={{
+                  background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: 8, padding: '8px 14px',
+                  color: '#fff', fontSize: 12, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" strokeLinecap="round"/></svg>
+                {currentQualityLabel}
+              </button>
+            )}
+            {/* Subtitles */}
+            {subtitles.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowSubs((s) => !s); setShowQuality(false); }}
+                style={{
+                  background: selectedSub ? 'rgba(0,217,255,0.25)' : 'rgba(255,255,255,0.15)',
+                  backdropFilter: 'blur(8px)',
+                  border: `1px solid ${selectedSub ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`,
+                  borderRadius: 8, padding: '8px 14px',
+                  color: selectedSub ? 'var(--primary)' : '#fff',
+                  fontSize: 12, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                CC {subtitles.length}
+              </button>
+            )}
+            {/* Fullscreen */}
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+              style={{
+                background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 8, padding: '8px 14px',
+                color: '#fff', fontSize: 12,
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                {isFullscreen
+                  ? <path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/>
+                  : <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                }
+              </svg>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Quality picker */}
+      {/* ── QUALITY PICKER ── */}
       {showQuality && (
         <div
           style={{
-            position: 'absolute', bottom: 60, right: 16,
-            background: 'rgba(19,24,41,0.95)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: '8px 0', zIndex: 50, minWidth: 100,
+            position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 12, padding: '6px 0', zIndex: 20, minWidth: 120,
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {qualities.map((q) => (
             <button
               key={q.quality}
-              onClick={() => handleQualityChange(q.url)}
+              onClick={(e) => { e.stopPropagation(); handleQualityChange(q.url); }}
               style={{
-                display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left',
-                fontSize: 14, color: q.url === selectedQuality ? 'var(--primary)' : 'var(--text)',
+                display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left',
+                fontSize: 14, color: q.url === selectedQuality ? 'var(--primary)' : '#fff',
                 fontWeight: q.url === selectedQuality ? 700 : 400,
+                background: 'none', border: 'none',
               }}
             >
               {q.quality}
@@ -307,32 +467,33 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
         </div>
       )}
 
-      {/* Subtitle picker */}
+      {/* ── SUBTITLE PICKER ── */}
       {showSubs && (
         <div
           style={{
-            position: 'absolute', bottom: 60, right: 16,
-            background: 'rgba(19,24,41,0.95)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: '8px 0', zIndex: 50, minWidth: 130,
+            position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 12, padding: '6px 0', zIndex: 20, minWidth: 140,
           }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => handleSubChange(null)}
+            onClick={(e) => { e.stopPropagation(); handleSubChange(null); }}
             style={{
-              display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left',
-              fontSize: 14, color: !selectedSub ? 'var(--primary)' : 'var(--text)',
-              fontWeight: !selectedSub ? 700 : 400,
+              display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left',
+              fontSize: 14, color: !selectedSub ? 'var(--primary)' : '#fff',
+              fontWeight: !selectedSub ? 700 : 400, background: 'none', border: 'none',
             }}
           >Off</button>
           {subtitles.map((s) => (
             <button
               key={s.language}
-              onClick={() => handleSubChange(s)}
+              onClick={(e) => { e.stopPropagation(); handleSubChange(s); }}
               style={{
-                display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left',
-                fontSize: 14, color: selectedSub?.language === s.language ? 'var(--primary)' : 'var(--text)',
+                display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left',
+                fontSize: 14, color: selectedSub?.language === s.language ? 'var(--primary)' : '#fff',
                 fontWeight: selectedSub?.language === s.language ? 700 : 400,
+                background: 'none', border: 'none',
               }}
             >
               {s.label}
@@ -340,12 +501,6 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
           ))}
         </div>
       )}
-
-      {/* Tap to toggle controls */}
-      <div
-        style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: showQuality || showSubs ? 'none' : 'all' }}
-        onClick={() => { setShowQuality(false); setShowSubs(false); if (showControls) { setShowControls(false); if (controlsTimer.current) clearTimeout(controlsTimer.current); } else resetControlsTimer(); }}
-      />
     </div>
   );
 }

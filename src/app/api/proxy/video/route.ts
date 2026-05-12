@@ -1,8 +1,8 @@
 // src/app/api/proxy/video/route.ts
-// Server-side proxy for B2 video files
-// The real B2 URL is NEVER sent to the browser
-
+// Edge runtime: no timeout, true streaming — required for video on Vercel
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'edge';
 
 const B2_BASE_URL = process.env.B2_BASE_URL ?? '';
 

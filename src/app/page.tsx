@@ -125,10 +125,10 @@ export default function HomePage() {
       <HeroCarousel mediaList={heroMedia} />
 
       <div style={{ paddingTop: 16 }}>
-        <CategoryRow title="🔥 Trending Now" data={trending} />
-        <CategoryRow title="✨ New Releases" data={latest} />
-        <CategoryRow title="💕 Romance" data={romance} />
-        <CategoryRow title="⚡ Action & Thriller" data={action} />
+        <CategoryRow title="Trending Now" data={trending} />
+        <CategoryRow title="New Releases" data={latest} />
+        <CategoryRow title="Romance" data={romance} />
+        <CategoryRow title="Action & Thriller" data={action} />
       </div>
     </div>
   );
