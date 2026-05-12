@@ -63,15 +63,12 @@ export default function VideoPlayer({
       {/* ── Vidstack Player ── */}
       <MediaPlayer
         ref={playerRef}
-        // key forces remount on quality change; savedTime restores position
         key={currentSrc}
         title={title}
-        src={{ src: currentSrc, type: 'video/mp4' }}
-        autoPlay
+        src={currentSrc}
         playsInline
-        currentTime={savedTime}
+        {...(savedTime > 0 ? { currentTime: savedTime } : {})}
         style={{ width: '100%', height: '100%' }}
-        crossOrigin
       >
         <MediaProvider>
           {subtitles.map((sub) => (
@@ -86,13 +83,7 @@ export default function VideoPlayer({
           ))}
         </MediaProvider>
 
-        <DefaultVideoLayout
-          icons={defaultLayoutIcons}
-          // Hide Vidstack's own quality menu (we use our custom one)
-          slots={{
-            settingsMenu: qualitySelectionEnabled && qualities.length > 1 ? undefined : <></>,
-          }}
-        />
+        <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>
 
       {/* ── Back button — always above Vidstack controls ── */}
