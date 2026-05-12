@@ -75,7 +75,6 @@ export default function VideoPlayer({
   qualitySelectionEnabled = true,
 }: Props) {
   const playerRef = useRef<MediaPlayerInstance>(null);
-  const blobUrlRef = useRef<string | null>(null); // tracks current blob: subtitle URL
   const [currentSrc, setCurrentSrc] = useState(qualities[0]?.url ?? videoUrl);
   const [savedTime, setSavedTime] = useState(0);
   const [showQuality, setShowQuality] = useState(false);
@@ -95,19 +94,12 @@ export default function VideoPlayer({
   const currentCue = cues.find((c) => currentTime >= c.start && currentTime <= c.end);
   const currentQuality = qualities.find((q) => q.url === currentSrc)?.quality ?? 'Auto';
 
-  // Load subtitle: parse for JS overlay + inject blob: URL for iOS native fullscreen
+  // Load subtitle text for the JS overlay. The <Track> rendered below gives iOS
+  // native fullscreen a real media text track to display.
   useEffect(() => {
     const controller = new AbortController();
 
-    // Clean up previous blob URL and custom track elements
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-    document.querySelectorAll('track[data-custom-sub]').forEach((t) => t.remove());
-
     if (!selectedSub?.url) {
-      setCueState({ url: '', cues: [] });
       return;
     }
 
@@ -117,36 +109,8 @@ export default function VideoPlayer({
         return r.text();
       })
       .then((text) => {
-        // 1. Parse for JS div-overlay (normal mode)
         const parsed = parseSubs(text);
         setCueState({ url: selectedSub.url, cues: parsed });
-
-        // 2. Inject as blob: URL track into actual <video> element for iOS fullscreen
-        const vttText = text.trimStart().startsWith('WEBVTT') ? text : `WEBVTT\n\n${text}`;
-        const blob = new Blob([vttText], { type: 'text/vtt' });
-        const blobUrl = URL.createObjectURL(blob);
-        blobUrlRef.current = blobUrl;
-
-        const videoEl = document.querySelector('video');
-        if (videoEl) {
-          const trackEl = document.createElement('track');
-          trackEl.kind = 'subtitles';
-          trackEl.label = selectedSub.label;
-          trackEl.srclang = selectedSub.language;
-          trackEl.src = blobUrl;
-          trackEl.setAttribute('data-custom-sub', 'true');
-          videoEl.appendChild(trackEl);
-
-          // Enable the track — must be 'showing' for iOS native player
-          const enableTrack = () => {
-            for (let i = 0; i < videoEl.textTracks.length; i++) {
-              const tt = videoEl.textTracks[i];
-              if (tt.kind === 'subtitles') tt.mode = 'showing';
-            }
-          };
-          trackEl.addEventListener('load', enableTrack, { once: true });
-          setTimeout(enableTrack, 400); // fallback
-        }
       })
       .catch((e) => {
         if (e.name === 'AbortError') return;
@@ -156,12 +120,6 @@ export default function VideoPlayer({
 
     return () => {
       controller.abort();
-      // Clean up blob URL when unmounting / subtitle changes
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-      document.querySelectorAll('track[data-custom-sub]').forEach((t) => t.remove());
     };
   }, [selectedSub?.url]);
 
@@ -206,7 +164,19 @@ export default function VideoPlayer({
         {...(savedTime > 0 ? { currentTime: savedTime } : {})}
         style={{ flex: 1, minHeight: 0 }}
       >
-        <MediaProvider />
+        <MediaProvider>
+          {selectedSub?.url && (
+            <Track
+              key={selectedSub.url}
+              src={selectedSub.url}
+              kind="subtitles"
+              label={selectedSub.label || selectedSub.language || 'Subtitles'}
+              lang={selectedSub.language || 'und'}
+              type="vtt"
+              default
+            />
+          )}
+        </MediaProvider>
         <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>
 
@@ -306,7 +276,7 @@ export default function VideoPlayer({
               border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: 12, overflow: 'hidden', minWidth: 140, zIndex: 100,
             }}>
-              <button onClick={() => { setSelectedSubUrl(null); setShowSubMenu(false); }}
+              <button onClick={() => { setSelectedSubUrl(null); setCueState({ url: '', cues: [] }); setShowSubMenu(false); }}
                 style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', fontSize: 14, color: !selectedSub ? 'var(--primary)' : '#fff', fontWeight: !selectedSub ? 700 : 400, background: 'none', border: 'none' }}>
                 Off
               </button>
