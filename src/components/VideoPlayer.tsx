@@ -85,17 +85,34 @@ export default function VideoPlayer({
   const [fontSize, setFontSize] = useState(17);
   const [showSubMenu, setShowSubMenu] = useState(false);
 
+  const [subDebug, setSubDebug] = useState<string>('');
+
   const currentCue = cues.find((c) => currentTime >= c.start && currentTime <= c.end);
   const currentQuality = qualities.find((q) => q.url === currentSrc)?.quality ?? 'Auto';
 
   // Load selected subtitle file via fetch (same-origin proxy, no CORS issue)
   useEffect(() => {
     setCues([]);
-    if (!selectedSub?.url) return;
+    setSubDebug('');
+    if (!selectedSub?.url) {
+      setSubDebug('No sub selected / URL empty');
+      return;
+    }
+    setSubDebug(`Fetching: ${selectedSub.url}`);
     fetch(selectedSub.url)
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
-      .then((text) => setCues(parseSubs(text)))
-      .catch(() => setCues([]));
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} from proxy`);
+        return r.text();
+      })
+      .then((text) => {
+        const parsed = parseSubs(text);
+        setCues(parsed);
+        setSubDebug(`OK — ${parsed.length} cues loaded (${text.slice(0, 40).replace(/\n/g, '↵')})`);
+      })
+      .catch((e) => {
+        setCues([]);
+        setSubDebug(`Error: ${e.message}`);
+      });
   }, [selectedSub?.url]);
 
   // Poll Vidstack currentTime for subtitle sync
@@ -142,6 +159,21 @@ export default function VideoPlayer({
         <MediaProvider />
         <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>
+
+      {/* ── SUBTITLE DEBUG BANNER (remove after fixing) ── */}
+      {subDebug ? (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top) + 56px)',
+          left: 8, right: 8,
+          background: 'rgba(0,0,0,0.88)',
+          color: subDebug.startsWith('Error') ? '#ff6b6b' : subDebug.startsWith('OK') ? '#00ff88' : '#ffd700',
+          fontSize: 11, padding: '6px 10px', borderRadius: 6, zIndex: 9998,
+          wordBreak: 'break-all', lineHeight: 1.4,
+        }}>
+          🔤 {subDebug} | cues:{cues.length} | t:{Math.floor(currentTime)}s
+        </div>
+      ) : null}
 
       {/* ── JS Subtitle overlay (fetched via same-origin proxy, no crossOrigin needed) ── */}
       {currentCue && (
