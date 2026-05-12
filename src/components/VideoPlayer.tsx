@@ -113,19 +113,13 @@ export default function VideoPlayer({
   };
 
   const toggleFullscreen = async () => {
-    const v = videoRef.current;
-    const el = containerRef.current;
-    if (!v || !el) return;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
-      if ((v as any).webkitDisplayingFullscreen) {
-        (v as any).webkitExitFullscreen?.();
-        setIsFullscreen(false);
-      } else {
-        (v as any).webkitEnterFullscreen?.();
-        setIsFullscreen(true);
-      }
+      // iOS PWA: CSS rotate handles landscape — just flip the state
+      setIsFullscreen((f) => !f);
     } else {
+      const el = containerRef.current;
+      if (!el) return;
       if (!document.fullscreenElement) {
         try { await el.requestFullscreen(); safeOrientationLock('landscape'); setIsFullscreen(true); } catch {}
       } else {
@@ -176,8 +170,15 @@ export default function VideoPlayer({
     <div
       ref={containerRef}
       style={{
-        position: 'relative', width: '100%',
-        height: isFullscreen ? '100vw' : '100dvh',
+        // iOS PWA fullscreen: use CSS rotate to fake landscape
+        // requestFullscreen/webkitEnterFullscreen don't work in iOS PWA home screen mode
+        position: isFullscreen ? 'fixed' : 'relative',
+        inset: isFullscreen ? 0 : undefined,
+        zIndex: isFullscreen ? 9999 : undefined,
+        width: isFullscreen ? '100dvh' : '100%',
+        height: isFullscreen ? '100dvw' : '100dvh',
+        transform: isFullscreen ? 'rotate(90deg) translateX(-100%)' : undefined,
+        transformOrigin: isFullscreen ? 'top left' : undefined,
         background: '#000', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
