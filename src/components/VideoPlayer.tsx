@@ -72,19 +72,34 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
   };
 
   const toggleFullscreen = async () => {
+    const v = videoRef.current;
     const el = containerRef.current;
-    if (!el) return;
-    if (!document.fullscreenElement) {
-      try {
-        await el.requestFullscreen();
-        // Lock to landscape in fullscreen
-        await (screen.orientation as any).lock?.('landscape').catch(() => {});
+    if (!el || !v) return;
+
+    // iOS Safari uses webkitEnterFullscreen on the video element directly
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      if ((v as any).webkitDisplayingFullscreen) {
+        (v as any).webkitExitFullscreen?.();
+        try { await (screen.orientation as any).lock?.('portrait-primary'); } catch {}
+        setIsFullscreen(false);
+      } else {
+        (v as any).webkitEnterFullscreen?.();
+        try { await (screen.orientation as any).lock?.('landscape'); } catch {}
         setIsFullscreen(true);
-      } catch {}
+      }
     } else {
-      document.exitFullscreen();
-      try { await (screen.orientation as any).lock?.('portrait-primary').catch(() => {}); } catch {}
-      setIsFullscreen(false);
+      if (!document.fullscreenElement) {
+        try {
+          await el.requestFullscreen();
+          await (screen.orientation as any).lock?.('landscape').catch(() => {});
+          setIsFullscreen(true);
+        } catch {}
+      } else {
+        document.exitFullscreen();
+        try { await (screen.orientation as any).lock?.('portrait-primary').catch(() => {}); } catch {}
+        setIsFullscreen(false);
+      }
     }
     resetControlsTimer();
   };
@@ -139,7 +154,7 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
         src={selectedQuality || videoUrl}
         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
         playsInline
-        webkit-playsinline="true"
+        preload="metadata"
         muted={muted}
         onTimeUpdate={(e) => {
           const v = e.currentTarget;
@@ -149,7 +164,7 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        crossOrigin="anonymous"
+        onError={(e) => console.error('[VideoPlayer] Error:', e.currentTarget.error)}
       >
         {subtitles.map((sub) => (
           <track

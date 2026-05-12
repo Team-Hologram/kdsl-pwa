@@ -1,16 +1,20 @@
 'use client';
 // src/components/MediaCard.tsx
 
-import Image from 'next/image';
 import { Media } from '@/lib/types';
 
 interface Props {
   media: Media;
   onPress: () => void;
-  width?: number;
 }
 
 export default function MediaCard({ media, onPress }: Props) {
+  // Status: Completed or Ongoing
+  const statusLabel = media.completed ? 'Completed' : 'Ongoing';
+  const statusColor = media.completed
+    ? 'rgba(46,213,115,0.85)'   // green
+    : 'rgba(255,165,0,0.85)';    // orange
+
   return (
     <div className="media-card" onClick={onPress} style={{ width: '100%' }}>
       <div style={{ position: 'relative', aspectRatio: '2/3', overflow: 'hidden' }}>
@@ -27,36 +31,63 @@ export default function MediaCard({ media, onPress }: Props) {
           background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
           pointerEvents: 'none',
         }} />
-        {/* Type badge */}
-        <div style={{
-          position: 'absolute', top: 8, left: 8,
-          background: media.type === 'movie' ? 'var(--secondary)' : 'var(--primary)',
-          color: media.type === 'movie' ? '#fff' : '#0A0E27',
-          fontSize: 10, fontWeight: 700, padding: '2px 7px',
-          borderRadius: 'var(--radius-full)', letterSpacing: 0.5,
-          textTransform: 'uppercase',
-        }}>
-          {media.type === 'movie' ? 'Movie' : 'Drama'}
+
+        {/* Top-left badges */}
+        <div style={{ position: 'absolute', top: 6, left: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* Trending badge */}
+          {media.trending && (
+            <div style={{
+              background: 'rgba(255,59,48,0.9)',
+              color: '#fff', fontSize: 9, fontWeight: 800,
+              padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4,
+              textTransform: 'uppercase',
+            }}>
+              🔥 Trending
+            </div>
+          )}
+          {/* New badge */}
+          {media.latest && (
+            <div style={{
+              background: 'rgba(0,122,255,0.9)',
+              color: '#fff', fontSize: 9, fontWeight: 800,
+              padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4,
+              textTransform: 'uppercase',
+            }}>
+              ✨ New
+            </div>
+          )}
         </div>
-        {/* Rating */}
+
+        {/* Bottom-left: status */}
         <div style={{
-          position: 'absolute', bottom: 8, left: 8,
-          display: 'flex', alignItems: 'center', gap: 3,
+          position: 'absolute', bottom: 6, left: 6,
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          <div style={{
+            background: statusColor,
+            color: '#fff', fontSize: 9, fontWeight: 700,
+            padding: '2px 6px', borderRadius: 4,
+            textTransform: 'uppercase', letterSpacing: 0.3,
+          }}>
+            {statusLabel}
+          </div>
+        </div>
+
+        {/* Bottom-right: rating */}
+        <div style={{
+          position: 'absolute', bottom: 6, right: 6,
+          display: 'flex', alignItems: 'center', gap: 2,
           fontSize: 11, fontWeight: 600, color: '#FFD700',
         }}>
           ⭐ {media.rating.toFixed(1)}
         </div>
       </div>
-      <div style={{ padding: '8px 10px 10px' }}>
-        <div className="line-clamp-2" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>
+
+      <div style={{ padding: '7px 8px 9px' }}>
+        <div className="line-clamp-2" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>
           {media.title}
         </div>
-        {media.titleSinhala && (
-          <div className="line-clamp-1" style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-            {media.titleSinhala}
-          </div>
-        )}
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
           {media.year} · {media.type === 'movie' ? 'Movie' : `${media.totalEpisodes ?? '?'} EP`}
         </div>
       </div>

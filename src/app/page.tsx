@@ -129,7 +129,6 @@ export default function HomePage() {
         <CategoryRow title="✨ New Releases" data={latest} />
         <CategoryRow title="💕 Romance" data={romance} />
         <CategoryRow title="⚡ Action & Thriller" data={action} />
-        <CategoryRow title="🎬 All Dramas & Movies" data={all} />
       </div>
     </div>
   );

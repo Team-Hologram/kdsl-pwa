@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
     }
     // Allow seek on the proxy stream
     responseHeaders.set('accept-ranges', 'bytes');
+    // CORS — needed for Safari when crossOrigin attribute is used
+    responseHeaders.set('access-control-allow-origin', '*');
+    responseHeaders.set('access-control-allow-headers', 'range');
     // Private cache only — don't let CDNs cache and expose the origin
     responseHeaders.set('cache-control', 'private, max-age=3600');
 
