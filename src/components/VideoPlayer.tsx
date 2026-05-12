@@ -1,5 +1,5 @@
 'use client';
-// src/components/VideoPlayer.tsx — Android-style design
+// src/components/VideoPlayer.tsx
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { VideoQuality, Subtitle } from '@/lib/types';
@@ -20,6 +20,40 @@ function formatTime(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
+// ── VTT parser (handles both MM:SS.mmm and HH:MM:SS.mmm) ──
+function parseVttTime(t: string): number {
+  const parts = t.trim().split(':').map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
+
+interface Cue { start: number; end: number; text: string; }
+
+function parseVtt(content: string): Cue[] {
+  const cues: Cue[] = [];
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (line.includes('-->')) {
+      const [startStr, endStr] = line.split('-->');
+      const start = parseVttTime(startStr);
+      const end = parseVttTime(endStr.split(' ')[0]);
+      const textLines: string[] = [];
+      i++;
+      while (i < lines.length && lines[i].trim() !== '') {
+        // Strip VTT inline tags like <c.color>, <i>, etc.
+        textLines.push(lines[i].replace(/<[^>]+>/g, '').trim());
+        i++;
+      }
+      if (textLines.length) cues.push({ start, end, text: textLines.join('\n') });
+    }
+    i++;
+  }
+  return cues;
+}
+
 export default function VideoPlayer({
   videoUrl, qualities, subtitles, title, onBack, qualitySelectionEnabled = true,
 }: Props) {
@@ -37,7 +71,7 @@ export default function VideoPlayer({
   const [showFontSize, setShowFontSize] = useState(false);
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]?.url ?? videoUrl);
-  // Default to Sinhala sub if available, else first sub
+  // Default: Sinhala first, else first available
   const defaultSub = subtitles.find((s) => s.language === 'si') ?? subtitles[0] ?? null;
   const [selectedSub, setSelectedSub] = useState<Subtitle | null>(defaultSub);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -46,7 +80,40 @@ export default function VideoPlayer({
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const fontSizePx = fontSize === 'small' ? 12 : fontSize === 'large' ? 20 : 16;
+  // JS subtitle state
+  const [cues, setCues] = useState<Cue[]>([]);
+  const [currentCue, setCurrentCue] = useState('');
+
+  const fontSizePx = fontSize === 'small' ? 13 : fontSize === 'large' ? 21 : 17;
+
+  // ── Load VTT file via fetch when selected sub changes ──
+  useEffect(() => {
+    setCues([]);
+    setCurrentCue('');
+    if (!selectedSub?.url) return;
+    fetch(selectedSub.url)
+      .then((r) => r.text())
+      .then((text) => setCues(parseVtt(text)))
+      .catch(() => setCues([]));
+  }, [selectedSub?.url]);
+
+  // ── Update current cue based on playback position ──
+  useEffect(() => {
+    if (!cues.length) { setCurrentCue(''); return; }
+    const active = cues.find((c) => currentTime >= c.start && currentTime <= c.end);
+    setCurrentCue(active?.text ?? '');
+  }, [currentTime, cues]);
+
+  // ── Autoplay after video is ready ──
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const tryPlay = () => {
+      v.play().catch(() => {/* autoplay blocked — user can tap play */});
+    };
+    v.addEventListener('canplay', tryPlay, { once: true });
+    return () => v.removeEventListener('canplay', tryPlay);
+  }, [selectedQuality]);
 
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
@@ -56,28 +123,7 @@ export default function VideoPlayer({
 
   useEffect(() => { resetHideTimer(); }, []);
 
-  // Apply subtitle font size via CSS on the video container
-  useEffect(() => {
-    const style = document.getElementById('sub-font-style') as HTMLStyleElement | null
-      ?? (() => { const s = document.createElement('style'); s.id = 'sub-font-style'; document.head.appendChild(s); return s; })();
-    style.textContent = `video::cue { font-size: ${fontSizePx}px; }`;
-  }, [fontSizePx]);
-
-  // Apply default sub on mount
-  useEffect(() => {
-    if (!defaultSub) return;
-    const v = videoRef.current;
-    if (!v) return;
-    const apply = () => {
-      for (let i = 0; i < v.textTracks.length; i++) {
-        v.textTracks[i].mode = v.textTracks[i].label === defaultSub.label ? 'showing' : 'disabled';
-      }
-    };
-    v.addEventListener('loadedmetadata', apply);
-    return () => v.removeEventListener('loadedmetadata', apply);
-  }, []);
-
-  // Fullscreen change listener
+  // Fullscreen change listener (desktop)
   useEffect(() => {
     const onFS = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFS);
@@ -87,8 +133,7 @@ export default function VideoPlayer({
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) { v.play(); }
-    else { v.pause(); }
+    if (v.paused) v.play(); else v.pause();
     resetHideTimer();
   };
 
@@ -103,11 +148,10 @@ export default function VideoPlayer({
   const skip = (secs: number) => {
     const v = videoRef.current;
     if (!v) return;
-    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + secs));
+    v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + secs));
     resetHideTimer();
   };
 
-  // Safe orientation lock — iOS throws even inside try/catch; .catch() suppresses the rejection
   const safeOrientationLock = (o: string) => {
     try { (screen.orientation as any).lock?.(o)?.catch?.(() => {}); } catch {}
   };
@@ -115,7 +159,7 @@ export default function VideoPlayer({
   const toggleFullscreen = async () => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
-      // iOS PWA: CSS rotate handles landscape — just flip the state
+      // iOS PWA: just toggle state — CSS handles fixed overlay (no rotation trick)
       setIsFullscreen((f) => !f);
     } else {
       const el = containerRef.current;
@@ -146,20 +190,6 @@ export default function VideoPlayer({
 
   const handleSubChange = (sub: Subtitle | null) => {
     setSelectedSub(sub);
-    const v = videoRef.current;
-    if (v) {
-      for (let i = 0; i < v.textTracks.length; i++) {
-        v.textTracks[i].mode = 'disabled';
-      }
-      if (sub) {
-        for (let i = 0; i < v.textTracks.length; i++) {
-          if (v.textTracks[i].label === sub.label) {
-            v.textTracks[i].mode = 'showing';
-            break;
-          }
-        }
-      }
-    }
     setShowSubs(false);
     resetHideTimer();
   };
@@ -170,21 +200,20 @@ export default function VideoPlayer({
     <div
       ref={containerRef}
       style={{
-        // iOS PWA fullscreen: use CSS rotate to fake landscape
-        // requestFullscreen/webkitEnterFullscreen don't work in iOS PWA home screen mode
+        // Fullscreen on iOS: fixed overlay (no rotation — user rotates phone)
         position: isFullscreen ? 'fixed' : 'relative',
         inset: isFullscreen ? 0 : undefined,
         zIndex: isFullscreen ? 9999 : undefined,
-        width: isFullscreen ? '100dvh' : '100%',
-        height: isFullscreen ? '100dvw' : '100dvh',
-        transform: isFullscreen ? 'rotate(90deg) translateX(-100%)' : undefined,
-        transformOrigin: isFullscreen ? 'top left' : undefined,
+        width: '100%',
+        height: isFullscreen ? '100dvh' : '100dvh',
         background: '#000', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
-      // Tap anywhere to toggle controls
       onClick={() => {
-        if (showQuality || showSubs) { setShowQuality(false); setShowSubs(false); return; }
+        if (showQuality || showSubs || showFontSize) {
+          setShowQuality(false); setShowSubs(false); setShowFontSize(false);
+          return;
+        }
         if (showControls) {
           setShowControls(false);
           if (hideTimer.current) clearTimeout(hideTimer.current);
@@ -193,7 +222,7 @@ export default function VideoPlayer({
         }
       }}
     >
-      {/* ── VIDEO ELEMENT ── */}
+      {/* ── VIDEO ── */}
       <video
         ref={videoRef}
         src={selectedQuality || videoUrl}
@@ -201,7 +230,7 @@ export default function VideoPlayer({
         playsInline
         preload="auto"
         muted={muted}
-        onLoadStart={() => setIsLoading(true)}
+        onLoadStart={() => { setIsLoading(true); setHasError(false); }}
         onCanPlay={() => setIsLoading(false)}
         onWaiting={() => setIsLoading(true)}
         onPlaying={() => { setIsLoading(false); setHasError(false); }}
@@ -215,25 +244,43 @@ export default function VideoPlayer({
         onPause={() => setPlaying(false)}
         onError={(e) => {
           const err = e.currentTarget.error;
-          const errLabels: Record<number,string> = {1:'Aborted',2:'Network',3:'Decode',4:'Format not supported'};
-          const msg = err ? `Code ${err.code}: ${err.message || errLabels[err.code] || 'Unknown'}` : 'Unknown error';
-          console.error('[VideoPlayer] Error:', msg);
+          const errLabels: Record<number, string> = { 1: 'Aborted', 2: 'Network', 3: 'Decode', 4: 'Format not supported' };
+          const msg = err ? `Code ${err.code}: ${err.message || errLabels[err.code] || 'Unknown'}` : 'Unknown';
           setErrorMsg(msg);
           setIsLoading(false);
           setHasError(true);
         }}
-      >
-        {subtitles.map((sub) => (
-          <track
-            key={sub.language}
-            kind="subtitles"
-            src={sub.url}
-            label={sub.label}
-            srcLang={sub.language}
-            default={sub.language === 'si'}
-          />
-        ))}
-      </video>
+      />
+
+      {/* ── JS SUBTITLE OVERLAY (works even with cross-origin video) ── */}
+      {currentCue && (
+        <div style={{
+          position: 'absolute',
+          bottom: showControls ? 100 : 24,
+          left: 16, right: 16,
+          textAlign: 'center',
+          zIndex: 8,
+          transition: 'bottom 0.3s',
+          pointerEvents: 'none',
+        }}>
+          {currentCue.split('\n').map((line, i) => (
+            <div key={i} style={{
+              display: 'inline-block',
+              background: 'rgba(0,0,0,0.78)',
+              color: '#fff',
+              fontSize: fontSizePx,
+              fontWeight: 500,
+              padding: '3px 10px',
+              borderRadius: 4,
+              lineHeight: 1.5,
+              marginBottom: 2,
+              maxWidth: '100%',
+            }}>
+              {line}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── LOADING SPINNER ── */}
       {isLoading && !hasError && (
@@ -260,7 +307,7 @@ export default function VideoPlayer({
         }}>
           <div style={{ fontSize: 36 }}>⚠️</div>
           <p style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>Video failed to load</p>
-          {errorMsg ? <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, textAlign: 'center' }}>{errorMsg}</p> : null}
+          {errorMsg && <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, textAlign: 'center' }}>{errorMsg}</p>}
           <button
             style={{ background: 'var(--primary)', color: '#000', padding: '8px 20px', borderRadius: 8, fontWeight: 700 }}
             onClick={(e) => { e.stopPropagation(); setHasError(false); setIsLoading(true); videoRef.current?.load(); }}
@@ -274,28 +321,24 @@ export default function VideoPlayer({
       <div
         style={{
           position: 'absolute', inset: 0, zIndex: 10,
-          display: 'flex', flexDirection: 'column',
-          justifyContent: 'space-between',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           background: showControls
             ? 'linear-gradient(rgba(0,0,0,0.55) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.65) 100%)'
             : 'transparent',
           opacity: showControls ? 1 : 0,
-          transition: 'opacity 0.3s, background 0.3s',
+          transition: 'opacity 0.3s',
           pointerEvents: showControls ? 'all' : 'none',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ── TOP BAR ── */}
+        {/* TOP BAR */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '48px 16px 16px' }}>
-          {/* Circle back button */}
           <button
             onClick={(e) => { e.stopPropagation(); onBack(); }}
             style={{
               width: 40, height: 40, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.18)',
-              backdropFilter: 'blur(8px)',
-              border: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
+              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#fff', flexShrink: 0,
             }}
           >
@@ -303,13 +346,7 @@ export default function VideoPlayer({
               <path d="M19 12H5M12 5l-7 7 7 7"/>
             </svg>
           </button>
-          <span
-            className="line-clamp-1"
-            style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#fff' }}
-          >
-            {title}
-          </span>
-          {/* Mute */}
+          <span className="line-clamp-1" style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#fff' }}>{title}</span>
           <button
             onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
             style={{ color: 'rgba(255,255,255,0.8)', padding: 8, background: 'none', border: 'none' }}
@@ -321,26 +358,19 @@ export default function VideoPlayer({
           </button>
         </div>
 
-        {/* ── CENTER CONTROLS ── */}
+        {/* CENTER CONTROLS */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-            {/* Rewind */}
-            <button
-              onClick={(e) => { e.stopPropagation(); skip(-10); }}
-              style={{ color: 'rgba(255,255,255,0.85)', background: 'none', border: 'none', padding: 8 }}
-            >
+            <button onClick={(e) => { e.stopPropagation(); skip(-10); }} style={{ color: 'rgba(255,255,255,0.85)', background: 'none', border: 'none', padding: 8 }}>
               <svg width={36} height={36} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M11.5 12l-8.5 5V7l8.5 5zm10 0l-8.5 5V7l8.5 5z"/>
               </svg>
             </button>
-
-            {/* Play / Pause — primary colored */}
             <button
               onClick={(e) => { e.stopPropagation(); togglePlay(); }}
               style={{
                 width: 68, height: 68, borderRadius: '50%',
-                background: 'transparent', border: 'none',
-                color: 'var(--primary)',
+                background: 'transparent', border: 'none', color: 'var(--primary)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 filter: 'drop-shadow(0 0 12px rgba(0,217,255,0.6))',
               }}
@@ -350,58 +380,31 @@ export default function VideoPlayer({
                 : <svg width={52} height={52} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
               }
             </button>
-
-            {/* Forward */}
-            <button
-              onClick={(e) => { e.stopPropagation(); skip(10); }}
-              style={{ color: 'rgba(255,255,255,0.85)', background: 'none', border: 'none', padding: 8 }}
-            >
+            <button onClick={(e) => { e.stopPropagation(); skip(10); }} style={{ color: 'rgba(255,255,255,0.85)', background: 'none', border: 'none', padding: 8 }}>
               <svg width={36} height={36} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.5 12L21 7v10l-8.5-5zm-10 0L11 7v10l-8.5-5z"/>
               </svg>
             </button>
           </div>
-
-          {/* Branding */}
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)', letterSpacing: 1 }}>
-            KDrama SL
-          </span>
         </div>
 
-        {/* ── BOTTOM: PROGRESS + CONTROLS ── */}
+        {/* BOTTOM: SEEK + CONTROLS */}
         <div style={{ padding: '0 16px 32px' }}>
-          {/* Time + seek bar */}
+          {/* Seek bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontVariantNumeric: 'tabular-nums', minWidth: 36 }}>
               {formatTime(currentTime)}
             </span>
-
-            {/* Custom seek bar */}
             <div style={{ flex: 1, position: 'relative', height: 20, display: 'flex', alignItems: 'center' }}>
-              {/* Track bg */}
               <div style={{ position: 'absolute', left: 0, right: 0, height: 3, background: 'rgba(255,255,255,0.2)', borderRadius: 2 }} />
-              {/* Buffered */}
-              <div style={{
-                position: 'absolute', left: 0, height: 3, borderRadius: 2,
-                width: `${duration ? (buffered / duration) * 100 : 0}%`,
-                background: 'rgba(255,255,255,0.35)',
-              }} />
-              {/* Progress */}
-              <div style={{
-                position: 'absolute', left: 0, height: 3, borderRadius: 2,
-                width: `${duration ? (currentTime / duration) * 100 : 0}%`,
-                background: 'var(--primary)',
-              }} />
+              <div style={{ position: 'absolute', left: 0, height: 3, borderRadius: 2, width: `${duration ? (buffered / duration) * 100 : 0}%`, background: 'rgba(255,255,255,0.35)' }} />
+              <div style={{ position: 'absolute', left: 0, height: 3, borderRadius: 2, width: `${duration ? (currentTime / duration) * 100 : 0}%`, background: 'var(--primary)' }} />
               <input
                 type="range" min={0} max={duration || 100} step={0.5} value={currentTime}
                 onChange={seek}
                 onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: 'absolute', left: 0, right: 0, width: '100%',
-                  height: '100%', opacity: 0, cursor: 'pointer', zIndex: 1,
-                }}
+                style={{ position: 'absolute', left: 0, right: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 1 }}
               />
-              {/* Thumb indicator */}
               <div style={{
                 position: 'absolute',
                 left: `${duration ? (currentTime / duration) * 100 : 0}%`,
@@ -412,73 +415,41 @@ export default function VideoPlayer({
                 pointerEvents: 'none',
               }} />
             </div>
-
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontVariantNumeric: 'tabular-nums', minWidth: 36, textAlign: 'right' }}>
               {formatTime(duration)}
             </span>
           </div>
 
-          {/* Bottom pill controls */}
+          {/* Bottom pill buttons */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            {/* Quality */}
             {qualitySelectionEnabled && qualities.length > 0 && (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowQuality((q) => !q); setShowSubs(false); }}
-                style={{
-                  background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: 8, padding: '8px 14px',
-                  color: '#fff', fontSize: 12, fontWeight: 600,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}
+                onClick={(e) => { e.stopPropagation(); setShowQuality((q) => !q); setShowSubs(false); setShowFontSize(false); }}
+                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '8px 14px', color: '#fff', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" strokeLinecap="round"/></svg>
+                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" strokeLinecap="round"/></svg>
                 {currentQualityLabel}
               </button>
             )}
-            {/* Subtitles */}
             {subtitles.length > 0 && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowSubs((s) => !s); setShowQuality(false); setShowFontSize(false); }}
-                style={{
-                  background: selectedSub ? 'rgba(0,217,255,0.25)' : 'rgba(255,255,255,0.15)',
-                  backdropFilter: 'blur(8px)',
-                  border: `1px solid ${selectedSub ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`,
-                  borderRadius: 8, padding: '8px 14px',
-                  color: selectedSub ? 'var(--primary)' : '#fff',
-                  fontSize: 12, fontWeight: 600,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}
+                style={{ background: selectedSub ? 'rgba(0,217,255,0.25)' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: `1px solid ${selectedSub ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, padding: '8px 14px', color: selectedSub ? 'var(--primary)' : '#fff', fontSize: 12, fontWeight: 600 }}
               >
                 CC {subtitles.length}
               </button>
             )}
-            {/* Font size (Aa) */}
             {subtitles.length > 0 && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowFontSize((f) => !f); setShowSubs(false); setShowQuality(false); }}
-                style={{
-                  background: showFontSize ? 'rgba(0,217,255,0.25)' : 'rgba(255,255,255,0.15)',
-                  backdropFilter: 'blur(8px)',
-                  border: `1px solid ${showFontSize ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`,
-                  borderRadius: 8, padding: '8px 14px',
-                  color: showFontSize ? 'var(--primary)' : '#fff',
-                  fontSize: 13, fontWeight: 700,
-                }}
+                style={{ background: showFontSize ? 'rgba(0,217,255,0.25)' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: `1px solid ${showFontSize ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, padding: '8px 14px', color: showFontSize ? 'var(--primary)' : '#fff', fontSize: 13, fontWeight: 700 }}
               >
                 Aa
               </button>
             )}
-            {/* Fullscreen */}
             <button
               onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
-              style={{
-                background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: 8, padding: '8px 14px',
-                color: '#fff', fontSize: 12,
-                display: 'flex', alignItems: 'center',
-              }}
+              style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '8px 14px', color: '#fff', display: 'flex', alignItems: 'center' }}
             >
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 {isFullscreen
@@ -493,25 +464,9 @@ export default function VideoPlayer({
 
       {/* ── QUALITY PICKER ── */}
       {showQuality && (
-        <div
-          style={{
-            position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 12, padding: '6px 0', zIndex: 20, minWidth: 120,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div style={{ position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '6px 0', zIndex: 20, minWidth: 120 }} onClick={(e) => e.stopPropagation()}>
           {qualities.map((q) => (
-            <button
-              key={q.quality}
-              onClick={(e) => { e.stopPropagation(); handleQualityChange(q.url); }}
-              style={{
-                display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left',
-                fontSize: 14, color: q.url === selectedQuality ? 'var(--primary)' : '#fff',
-                fontWeight: q.url === selectedQuality ? 700 : 400,
-                background: 'none', border: 'none',
-              }}
-            >
+            <button key={q.quality} onClick={(e) => { e.stopPropagation(); handleQualityChange(q.url); }} style={{ display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left', fontSize: 14, color: q.url === selectedQuality ? 'var(--primary)' : '#fff', fontWeight: q.url === selectedQuality ? 700 : 400, background: 'none', border: 'none' }}>
               {q.quality}
             </button>
           ))}
@@ -520,27 +475,9 @@ export default function VideoPlayer({
 
       {/* ── FONT SIZE PICKER ── */}
       {showFontSize && (
-        <div
-          style={{
-            position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 12, padding: '10px 16px', zIndex: 20,
-            display: 'flex', gap: 12, alignItems: 'center',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div style={{ position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '10px 16px', zIndex: 20, display: 'flex', gap: 12, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
           {(['small', 'medium', 'large'] as const).map((s) => (
-            <button
-              key={s}
-              onClick={(e) => { e.stopPropagation(); setFontSize(s); }}
-              style={{
-                padding: '8px 14px', borderRadius: 8,
-                background: fontSize === s ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
-                color: fontSize === s ? '#000' : '#fff',
-                fontSize: s === 'small' ? 11 : s === 'large' ? 17 : 14,
-                fontWeight: 700, border: 'none',
-              }}
-            >
+            <button key={s} onClick={(e) => { e.stopPropagation(); setFontSize(s); }} style={{ padding: '8px 14px', borderRadius: 8, background: fontSize === s ? 'var(--primary)' : 'rgba(255,255,255,0.1)', color: fontSize === s ? '#000' : '#fff', fontSize: s === 'small' ? 11 : s === 'large' ? 17 : 14, fontWeight: 700, border: 'none' }}>
               {s === 'small' ? 'A' : s === 'medium' ? 'Aa' : 'AA'}
             </button>
           ))}
@@ -549,33 +486,10 @@ export default function VideoPlayer({
 
       {/* ── SUBTITLE PICKER ── */}
       {showSubs && (
-        <div
-          style={{
-            position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 12, padding: '6px 0', zIndex: 20, minWidth: 140,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={(e) => { e.stopPropagation(); handleSubChange(null); }}
-            style={{
-              display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left',
-              fontSize: 14, color: !selectedSub ? 'var(--primary)' : '#fff',
-              fontWeight: !selectedSub ? 700 : 400, background: 'none', border: 'none',
-            }}
-          >Off</button>
+        <div style={{ position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '6px 0', zIndex: 20, minWidth: 140 }} onClick={(e) => e.stopPropagation()}>
+          <button onClick={(e) => { e.stopPropagation(); handleSubChange(null); }} style={{ display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left', fontSize: 14, color: !selectedSub ? 'var(--primary)' : '#fff', fontWeight: !selectedSub ? 700 : 400, background: 'none', border: 'none' }}>Off</button>
           {subtitles.map((s) => (
-            <button
-              key={s.language}
-              onClick={(e) => { e.stopPropagation(); handleSubChange(s); }}
-              style={{
-                display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left',
-                fontSize: 14, color: selectedSub?.language === s.language ? 'var(--primary)' : '#fff',
-                fontWeight: selectedSub?.language === s.language ? 700 : 400,
-                background: 'none', border: 'none',
-              }}
-            >
+            <button key={s.language} onClick={(e) => { e.stopPropagation(); handleSubChange(s); }} style={{ display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left', fontSize: 14, color: selectedSub?.language === s.language ? 'var(--primary)' : '#fff', fontWeight: selectedSub?.language === s.language ? 700 : 400, background: 'none', border: 'none' }}>
               {s.label}
             </button>
           ))}
