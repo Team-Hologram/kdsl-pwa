@@ -56,6 +56,14 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
   const [cueState, setCueState] = useState<CueState>({ url:'', cues:[] });
   const [currentTime, setCurrentTime] = useState(0);
   const [fontSize, setFontSize] = useState(17);
+  // Actual pixel dimensions for correct landscape sizing on all devices
+  const [winSize, setWinSize] = useState({ w: 375, h: 667 });
+  useEffect(() => {
+    const update = () => setWinSize({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const selectedSub = selectedSubUrl === null ? null : subtitles.find(s=>s.url===selectedSubUrl) ?? defaultSub;
   const cues = selectedSub?.url === cueState.url ? cueState.cues : [];
@@ -103,14 +111,16 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
     setCurrentSrc(q.url); setShowQuality(false);
   };
 
-  // CSS landscape: rotate entire container 90deg to fill screen
-  // NOTE: use vh/vw NOT dvh/dvw — dvh requires iOS 16+, iPhone 6s runs iOS 15
+  // CSS landscape: rotate entire container 90deg using EXACT pixel dimensions
+  // window.innerWidth/innerHeight = true viewport pixels — works on iOS 15 (6s) + iOS 18 (16 Pro)
+  const W = winSize.w; // portrait screen width
+  const H = winSize.h; // portrait screen height
   const landscapeStyle: React.CSSProperties = isLandscape ? {
     position: 'fixed',
-    width: '100vh',
-    height: '100vw',
-    top: 'calc((100vh - 100vw) / 2)',
-    left: 'calc((100vw - 100vh) / 2)',
+    width: H,                       // element width = screen height (fills landscape width)
+    height: W,                      // element height = screen width (fills landscape height)
+    top: (H - W) / 2,              // center vertically
+    left: (W - H) / 2,             // center horizontally (negative = shifted left)
     transform: 'rotate(90deg)',
     transformOrigin: 'center center',
     zIndex: 9999,
@@ -146,11 +156,27 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
         <MediaProvider />
         <DefaultVideoLayout icons={defaultLayoutIcons} />
 
-        {/* Subtitle overlay */}
+        {/* Subtitle overlay — position changes in landscape (90deg CW rotate):
+            portrait: bottom / centered horizontally
+            landscape: right (=visual bottom) / centered vertically  */}
         {currentCue && (
-          <div style={{ position:'absolute', bottom: isLandscape ? 56 : 72, left:16, right:16, textAlign:'center', zIndex:9990, pointerEvents:'none' }}>
+          <div style={isLandscape ? {
+            position: 'absolute',
+            right: 64,              // 90deg CW: right → user's visual bottom
+            top: 0, bottom: 0,
+            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+            alignItems: 'center',
+            zIndex: 9990, pointerEvents: 'none',
+            paddingBottom: 8,
+          } : {
+            position: 'absolute',
+            bottom: 72,
+            left: 16, right: 16,
+            textAlign: 'center',
+            zIndex: 9990, pointerEvents: 'none',
+          }}>
             {currentCue.text.split('\n').map((line, i) => (
-              <div key={i} style={{ display:'inline-block', background:'rgba(0,0,0,0.82)', color:'#fff', fontSize, fontWeight:500, padding:'3px 10px', borderRadius:4, lineHeight:1.5, marginBottom:2 }}>{line}</div>
+              <div key={i} style={{ display:'block', background:'rgba(0,0,0,0.82)', color:'#fff', fontSize, fontWeight:500, padding:'3px 10px', borderRadius:4, lineHeight:1.5, marginBottom:2, textAlign:'center' }}>{line}</div>
             ))}
           </div>
         )}
