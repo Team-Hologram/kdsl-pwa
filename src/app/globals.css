@@ -290,23 +290,148 @@ html, body {
 /* ── Vidstack: overrides ─────────────────────────────────────────────────── */
 
 /* Hide built-in fullscreen button (replaced by our CSS-rotation toggle) */
-.vds-fullscreen-button {
-  display: none !important;
-}
+.vds-fullscreen-button { display: none !important; }
 
-/* Hide seek thumbnail preview (shows as black box when rotated) */
-.vds-thumbnail,
-.vds-slider-thumbnail {
-  display: none !important;
-}
+/* Hide seek thumbnail preview (visible as black box when container is rotated) */
+.vds-thumbnail, .vds-slider-thumbnail { display: none !important; }
 
-/* Force media-player + video to fill their container on all devices */
+/* Hide Vidstack's top controls group (title + back) — we supply our own */
+.vds-video-layout .vds-controls-group:first-child { display: none !important; }
+
+/* Force media-player + video to fill container on all devices */
 media-player {
   width: 100% !important;
   height: 100% !important;
+  /* Vidstack already sets container-type:size — enables @container queries below */
 }
 media-player video {
   width: 100% !important;
   height: 100% !important;
   object-fit: contain !important;
+}
+
+/* ── Custom overlay responsive positioning via container queries ─────────── */
+/* Vidstack sets container-type:size on media-player automatically.
+   Our .player-* classes inside MediaPlayer adapt via @container.
+   Portrait player ≈ 375–430px wide; landscape inner div ≈ 667–932px wide. */
+
+/* Subtitle — portrait default */
+.player-sub {
+  position: absolute;
+  bottom: 18%;          /* above Vidstack seek bar (≈72px on small, scales up) */
+  left: 4%; right: 4%;
+  text-align: center;
+  z-index: 9990;
+  pointer-events: none;
+}
+
+/* Subtitle — landscape (wide container):
+   90°CW rotation: CSS right → user's visual BOTTOM
+                   CSS vertical-center → user's HORIZONTAL CENTER */
+@container (min-width: 500px) {
+  .player-sub {
+    inset: 0;
+    bottom: unset;
+    left: unset; right: unset;
+    display: flex;
+    flex-direction: row;         /* CSS horizontal = user's vertical axis after CW rotation */
+    justify-content: flex-end;   /* CSS right = user's visual bottom ✅ */
+    align-items: center;         /* CSS vert-center = user's horizontal center ✅ */
+    padding-right: 10%;          /* % scales with container: ~67px(6s) / ~85px(16Pro) */
+  }
+  .player-sub-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+}
+
+/* Back button — always top-left, % units scale with container */
+.player-btn-back {
+  position: absolute;
+  top: 3%; left: 2%;
+  z-index: 9999;
+  width: clamp(32px, 6%, 44px);
+  height: clamp(32px, 6%, 44px);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none; color: #fff; cursor: pointer;
+}
+
+/* Fullscreen toggle — bottom-left, % units */
+.player-btn-fs {
+  position: absolute;
+  bottom: 3%; left: 2%;
+  z-index: 9999;
+  width: clamp(28px, 5%, 38px);
+  height: clamp(28px, 5%, 38px);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none; color: #fff; cursor: pointer;
+}
+
+/* Controls cluster (Quality | CC | Aa) — top-right, % units */
+.player-controls-cluster {
+  position: absolute;
+  top: 3%; right: 2%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 1%, 8px);
+}
+
+/* Cluster buttons */
+.player-ctrl-btn {
+  height: clamp(26px, 4%, 34px);
+  padding: 0 clamp(6px, 1.5%, 12px);
+  font-size: clamp(10px, 1.5%, 13px);
+  font-weight: 700;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none; color: #fff; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+}
+.player-ctrl-btn.active {
+  color: #00D9FF;
+  background: rgba(0,217,255,0.22);
+}
+
+/* Dropdown menus */
+.player-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: rgba(10,14,39,0.97);
+  border-radius: 12px;
+  overflow: hidden;
+  min-width: 120px;
+  z-index: 10000;
+}
+.player-dropdown button {
+  display: block; width: 100%;
+  padding: clamp(7px,1.5%,11px) clamp(10px,2%,16px);
+  text-align: left;
+  font-size: clamp(12px,1.8%,15px);
+  background: none; border: none; cursor: pointer; color: #fff;
+}
+.player-dropdown button.sel { color: #00D9FF; font-weight: 700; }
+
+/* Subtitle text pill */
+.player-sub-line {
+  display: block;
+  background: rgba(0,0,0,0.84);
+  color: #fff;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 4px;
+  line-height: 1.55;
+  margin-bottom: 2px;
 }
