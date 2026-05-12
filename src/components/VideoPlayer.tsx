@@ -22,7 +22,7 @@ function formatTime(s: number) {
 
 // ── VTT/SRT parser — handles both HH:MM:SS.mmm (VTT) and HH:MM:SS,mmm (SRT) ──
 function parseVttTime(t: string): number {
-  // Normalize SRT comma separator to VTT dot
+  // Normalize SRT comma separator to VTT dot, then trim whitespace
   const normalized = t.trim().replace(',', '.');
   const parts = normalized.split(':').map(Number);
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -34,22 +34,33 @@ interface Cue { start: number; end: number; text: string; }
 
 function parseVtt(content: string): Cue[] {
   const cues: Cue[] = [];
-  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
     if (line.includes('-->')) {
-      const [startStr, endStr] = line.split('-->');
+      // Split on --> and trim both sides
+      // endRaw may have VTT extra params: "00:00:04.000 line:90% align:center"
+      // SRT extra params:                "00:00:04,000  X1:0 X2:0 Y1:0 Y2:0"
+      const arrowIdx = line.indexOf('-->');
+      const startStr = line.slice(0, arrowIdx).trim();
+      const endRaw = line.slice(arrowIdx + 3).trim(); // trim removes leading space
+      const endStr = endRaw.split(/\s+/)[0]; // take only the timestamp token
+
       const start = parseVttTime(startStr);
-      const end = parseVttTime(endStr.split(' ')[0]);
+      const end = parseVttTime(endStr);
+
       const textLines: string[] = [];
       i++;
       while (i < lines.length && lines[i].trim() !== '') {
-        // Strip VTT inline tags like <c.color>, <i>, etc.
-        textLines.push(lines[i].replace(/<[^>]+>/g, '').trim());
+        // Strip VTT/HTML inline tags like <c.color>, <i>, <b>, <font>, etc.
+        const clean = lines[i].replace(/<[^>]+>/g, '').trim();
+        if (clean) textLines.push(clean);
         i++;
       }
-      if (textLines.length) cues.push({ start, end, text: textLines.join('\n') });
+      if (textLines.length && end > start) {
+        cues.push({ start, end, text: textLines.join('\n') });
+      }
     }
     i++;
   }

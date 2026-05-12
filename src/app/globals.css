@@ -275,3 +275,14 @@ html, body {
 }
 .input:focus { border-color: var(--primary); }
 .input::placeholder { color: var(--text-muted); }
+
+/* ── Portrait lock overlay (iOS 15 ignores manifest orientation) ── */
+/* Shows a rotate-back message when device is in landscape on small screens */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .portrait-lock-overlay {
+    display: flex !important;
+  }
+  body > *:not(.portrait-lock-overlay) {
+    visibility: hidden;
+  }
+}

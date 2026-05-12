@@ -79,6 +79,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body>
+        {/* Portrait-lock overlay — hidden in portrait, shown in landscape via CSS */}
+        <div
+          className="portrait-lock-overlay"
+          style={{
+            display: 'none',
+            position: 'fixed', inset: 0, zIndex: 99999,
+            background: '#0A0E27',
+            flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 16,
+          }}
+        >
+          <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#00D9FF" strokeWidth={1.5}>
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+            <path d="M12 18h.01"/>
+          </svg>
+          <p style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>Please rotate to portrait</p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>This app works in portrait mode only</p>
+        </div>
         <MediaProvider>
           <NotificationsProvider>
             <AppShell>{children}</AppShell>
