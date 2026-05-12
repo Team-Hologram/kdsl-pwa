@@ -47,6 +47,44 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-theme="dark">
       <head>
+        {/* ── Polyfills for React 19 on older iOS Safari ──────────────────── */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          // Promise.withResolvers — required by React 19, only in Safari 17.4+
+          if (!Promise.withResolvers) {
+            Promise.withResolvers = function() {
+              var rs, rj;
+              var p = new Promise(function(res, rej) { rs = res; rj = rej; });
+              return { promise: p, resolve: rs, reject: rj };
+            };
+          }
+          // structuredClone — required by React 19, only in Safari 15.4+
+          if (!window.structuredClone) {
+            window.structuredClone = function(obj) {
+              return JSON.parse(JSON.stringify(obj));
+            };
+          }
+          // Array.prototype.toSorted — only in Safari 16+
+          if (!Array.prototype.toSorted) {
+            Array.prototype.toSorted = function(fn) { return [...this].sort(fn); };
+          }
+          // Array.prototype.toReversed — only in Safari 16+
+          if (!Array.prototype.toReversed) {
+            Array.prototype.toReversed = function() { return [...this].reverse(); };
+          }
+          // Global JS error overlay (dev diagnostic — remove in production)
+          window.addEventListener('error', function(e) {
+            var d = document.createElement('div');
+            d.style.cssText = 'position:fixed;bottom:100px;left:8px;right:8px;background:#ff4757;color:#fff;padding:10px;font:11px monospace;z-index:99999;border-radius:8px;word-break:break-all';
+            d.textContent = 'JS Error: ' + e.message + ' @ ' + (e.filename||'').split('/').pop() + ':' + e.lineno;
+            document.body.appendChild(d);
+          });
+          window.addEventListener('unhandledrejection', function(e) {
+            var d = document.createElement('div');
+            d.style.cssText = 'position:fixed;bottom:160px;left:8px;right:8px;background:#ff6b35;color:#fff;padding:10px;font:11px monospace;z-index:99999;border-radius:8px;word-break:break-all';
+            d.textContent = 'Promise: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
+            document.body.appendChild(d);
+          });
+        `}} />
         {/* iOS PWA full-screen */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
