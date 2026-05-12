@@ -36,7 +36,7 @@ ul, ol { list-style: none; }
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  --nav-height: 60px;
+  --nav-height: 56px;
   --header-height: 60px;
 }
 
@@ -91,7 +91,12 @@ main {
 .page-content {
   background: var(--bg);
   min-height: auto;
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
+
+  padding-bottom:
+    calc(
+      26px +
+      env(safe-area-inset-bottom)
+    );
 }
 
 /* ── Bottom nav — Facebook style ── */
@@ -101,8 +106,17 @@ main {
   right: 0;
   bottom: 0;
 
-  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  height:
+    calc(
+      56px +
+      env(safe-area-inset-bottom)
+    );
+
+  padding-bottom:
+    max(
+      4px,
+      env(safe-area-inset-bottom)
+    );
 
   background: rgba(19,24,41,0.96);
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -496,7 +510,7 @@ media-player video {
 /* ── Small iPhones ── */
 @media (max-width: 390px) {
   :root {
-    --nav-height: 62px;
+    --nav-height: 54px;
   }
 
   .bottom-nav-item svg {
