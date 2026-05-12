@@ -5,6 +5,7 @@ import { useRef, useState, useEffect } from 'react';
 import {
   MediaPlayer,
   MediaProvider,
+  Track,
   type MediaPlayerInstance,
 } from '@vidstack/react';
 import {
@@ -147,17 +148,39 @@ export default function VideoPlayer({
       }}
       onClick={() => { setShowQuality(false); setShowSubMenu(false); }}
     >
-      {/* ── Vidstack player (fills remaining space) ── */}
+      {/* ── Vidstack player ── */}
       <MediaPlayer
         ref={playerRef}
         key={currentSrc}
         title={title}
         src={currentSrc}
         playsInline
+        crossOrigin   // Safe: Cloudflare rule adds Access-Control-Allow-Origin: * for cdn.kdramasl.site
         {...(savedTime > 0 ? { currentTime: savedTime } : {})}
         style={{ flex: 1, minHeight: 0 }}
       >
-        <MediaProvider />
+        <MediaProvider>
+          {/* Native <track> — shows in iOS native fullscreen player */}
+          {selectedSub && (
+            <Track
+              src={selectedSub.url}
+              kind="subtitles"
+              label={selectedSub.label}
+              lang={selectedSub.language}
+              default
+            />
+          )}
+          {/* Also register all tracks for Vidstack's CC menu */}
+          {subtitles.filter(s => s.language !== selectedSub?.language).map(sub => (
+            <Track
+              key={sub.language}
+              src={sub.url}
+              kind="subtitles"
+              label={sub.label}
+              lang={sub.language}
+            />
+          ))}
+        </MediaProvider>
         <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>
 

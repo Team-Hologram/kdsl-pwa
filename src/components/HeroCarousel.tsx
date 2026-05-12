@@ -116,13 +116,6 @@ export default function HeroCarousel({ mediaList }: Props) {
             {media.type === 'movie' ? 'Movie' : `${media.totalEpisodes ?? '?'} Episodes`}
           </span>
           {/* Status badge */}
-          <span style={{
-            fontSize: 11, fontWeight: 700, color: '#fff',
-            background: media.completed ? 'rgba(46,213,115,0.8)' : 'rgba(255,165,0,0.8)',
-            padding: '2px 8px', borderRadius: 4,
-          }}>
-            {media.completed ? 'Completed' : 'Ongoing'}
-          </span>
           {media.genres.slice(0, 2).map((g) => (
             <span key={g} style={{
               fontSize: 11, color: 'var(--primary)',
