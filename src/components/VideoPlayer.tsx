@@ -75,6 +75,7 @@ export default function VideoPlayer({
   qualitySelectionEnabled = true,
 }: Props) {
   const playerRef = useRef<MediaPlayerInstance>(null);
+  const blobUrlRef = useRef<string | null>(null); // tracks current blob: subtitle URL
   const [currentSrc, setCurrentSrc] = useState(qualities[0]?.url ?? videoUrl);
   const [savedTime, setSavedTime] = useState(0);
   const [showQuality, setShowQuality] = useState(false);
@@ -94,10 +95,21 @@ export default function VideoPlayer({
   const currentCue = cues.find((c) => currentTime >= c.start && currentTime <= c.end);
   const currentQuality = qualities.find((q) => q.url === currentSrc)?.quality ?? 'Auto';
 
-  // Load selected subtitle file via fetch (same-origin proxy, no CORS issue)
+  // Load subtitle: parse for JS overlay + inject blob: URL for iOS native fullscreen
   useEffect(() => {
     const controller = new AbortController();
-    if (!selectedSub?.url) return;
+
+    // Clean up previous blob URL and custom track elements
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+    document.querySelectorAll('track[data-custom-sub]').forEach((t) => t.remove());
+
+    if (!selectedSub?.url) {
+      setCueState({ url: '', cues: [] });
+      return;
+    }
 
     fetch(selectedSub.url, { signal: controller.signal })
       .then((r) => {
@@ -105,8 +117,36 @@ export default function VideoPlayer({
         return r.text();
       })
       .then((text) => {
+        // 1. Parse for JS div-overlay (normal mode)
         const parsed = parseSubs(text);
         setCueState({ url: selectedSub.url, cues: parsed });
+
+        // 2. Inject as blob: URL track into actual <video> element for iOS fullscreen
+        const vttText = text.trimStart().startsWith('WEBVTT') ? text : `WEBVTT\n\n${text}`;
+        const blob = new Blob([vttText], { type: 'text/vtt' });
+        const blobUrl = URL.createObjectURL(blob);
+        blobUrlRef.current = blobUrl;
+
+        const videoEl = document.querySelector('video');
+        if (videoEl) {
+          const trackEl = document.createElement('track');
+          trackEl.kind = 'subtitles';
+          trackEl.label = selectedSub.label;
+          trackEl.srclang = selectedSub.language;
+          trackEl.src = blobUrl;
+          trackEl.setAttribute('data-custom-sub', 'true');
+          videoEl.appendChild(trackEl);
+
+          // Enable the track — must be 'showing' for iOS native player
+          const enableTrack = () => {
+            for (let i = 0; i < videoEl.textTracks.length; i++) {
+              const tt = videoEl.textTracks[i];
+              if (tt.kind === 'subtitles') tt.mode = 'showing';
+            }
+          };
+          trackEl.addEventListener('load', enableTrack, { once: true });
+          setTimeout(enableTrack, 400); // fallback
+        }
       })
       .catch((e) => {
         if (e.name === 'AbortError') return;
@@ -114,7 +154,15 @@ export default function VideoPlayer({
         console.error('[VideoPlayer] subtitle load failed:', e);
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      // Clean up blob URL when unmounting / subtitle changes
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+      document.querySelectorAll('track[data-custom-sub]').forEach((t) => t.remove());
+    };
   }, [selectedSub?.url]);
 
   // Poll Vidstack currentTime for subtitle sync
@@ -155,32 +203,10 @@ export default function VideoPlayer({
         title={title}
         src={currentSrc}
         playsInline
-        crossOrigin   // Safe: Cloudflare rule adds Access-Control-Allow-Origin: * for cdn.kdramasl.site
         {...(savedTime > 0 ? { currentTime: savedTime } : {})}
         style={{ flex: 1, minHeight: 0 }}
       >
-        <MediaProvider>
-          {/* Native <track> — shows in iOS native fullscreen player */}
-          {selectedSub && (
-            <Track
-              src={selectedSub.url}
-              kind="subtitles"
-              label={selectedSub.label}
-              lang={selectedSub.language}
-              default
-            />
-          )}
-          {/* Also register all tracks for Vidstack's CC menu */}
-          {subtitles.filter(s => s.language !== selectedSub?.language).map(sub => (
-            <Track
-              key={sub.language}
-              src={sub.url}
-              kind="subtitles"
-              label={sub.label}
-              lang={sub.language}
-            />
-          ))}
-        </MediaProvider>
+        <MediaProvider />
         <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>
 
