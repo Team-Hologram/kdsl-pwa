@@ -36,7 +36,7 @@ ul, ol { list-style: none; }
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  --nav-height: 64px;
+  --nav-height: 60px;
   --header-height: 60px;
 }
 
@@ -153,17 +153,6 @@ main {
 
 .bottom-nav-item:active {
   transform: scale(0.96);
-}
-
-.bottom-nav-item.active::before {
-  content: '';
-  position: absolute;
-  top: 5px;
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--primary);
-  box-shadow: 0 0 10px rgba(0,217,255,0.9);
 }
 
 /* ── Cards / UI ── */
