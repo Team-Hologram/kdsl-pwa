@@ -34,12 +34,19 @@ export default function VideoPlayer({
   const [showControls, setShowControls] = useState(true);
   const [showQuality, setShowQuality] = useState(false);
   const [showSubs, setShowSubs] = useState(false);
+  const [showFontSize, setShowFontSize] = useState(false);
+  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]?.url ?? videoUrl);
-  const [selectedSub, setSelectedSub] = useState<Subtitle | null>(null);
+  // Default to Sinhala sub if available, else first sub
+  const defaultSub = subtitles.find((s) => s.language === 'si') ?? subtitles[0] ?? null;
+  const [selectedSub, setSelectedSub] = useState<Subtitle | null>(defaultSub);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const fontSizePx = fontSize === 'small' ? 12 : fontSize === 'large' ? 20 : 16;
 
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
@@ -48,6 +55,27 @@ export default function VideoPlayer({
   }, []);
 
   useEffect(() => { resetHideTimer(); }, []);
+
+  // Apply subtitle font size via CSS on the video container
+  useEffect(() => {
+    const style = document.getElementById('sub-font-style') as HTMLStyleElement | null
+      ?? (() => { const s = document.createElement('style'); s.id = 'sub-font-style'; document.head.appendChild(s); return s; })();
+    style.textContent = `video::cue { font-size: ${fontSizePx}px; }`;
+  }, [fontSizePx]);
+
+  // Apply default sub on mount
+  useEffect(() => {
+    if (!defaultSub) return;
+    const v = videoRef.current;
+    if (!v) return;
+    const apply = () => {
+      for (let i = 0; i < v.textTracks.length; i++) {
+        v.textTracks[i].mode = v.textTracks[i].label === defaultSub.label ? 'showing' : 'disabled';
+      }
+    };
+    v.addEventListener('loadedmetadata', apply);
+    return () => v.removeEventListener('loadedmetadata', apply);
+  }, []);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -79,6 +107,11 @@ export default function VideoPlayer({
     resetHideTimer();
   };
 
+  // Safe orientation lock — iOS throws even inside try/catch; .catch() suppresses the rejection
+  const safeOrientationLock = (o: string) => {
+    try { (screen.orientation as any).lock?.(o)?.catch?.(() => {}); } catch {}
+  };
+
   const toggleFullscreen = async () => {
     const v = videoRef.current;
     const el = containerRef.current;
@@ -94,13 +127,9 @@ export default function VideoPlayer({
       }
     } else {
       if (!document.fullscreenElement) {
-        try {
-          await el.requestFullscreen();
-          await (screen.orientation as any).lock?.('landscape').catch(() => {});
-          setIsFullscreen(true);
-        } catch {}
+        try { await el.requestFullscreen(); safeOrientationLock('landscape'); setIsFullscreen(true); } catch {}
       } else {
-        document.exitFullscreen();
+        try { await document.exitFullscreen(); safeOrientationLock('portrait-primary'); } catch {}
         setIsFullscreen(false);
       }
     }
@@ -184,7 +213,10 @@ export default function VideoPlayer({
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onError={(e) => {
-          console.error('[VideoPlayer] Error:', e.currentTarget.error?.message);
+          const err = e.currentTarget.error;
+          const msg = err ? `Code ${err.code}: ${err.message || MediaError[err.code] || 'Unknown'}` : 'Unknown error';
+          console.error('[VideoPlayer] Error:', msg);
+          setErrorMsg(msg);
           setIsLoading(false);
           setHasError(true);
         }}
@@ -222,10 +254,11 @@ export default function VideoPlayer({
         <div style={{
           position: 'absolute', inset: 0, zIndex: 5,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: 12,
+          gap: 12, padding: '0 24px',
         }}>
           <div style={{ fontSize: 36 }}>⚠️</div>
-          <p style={{ color: '#fff', fontSize: 14 }}>Video failed to load</p>
+          <p style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>Video failed to load</p>
+          {errorMsg ? <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, textAlign: 'center' }}>{errorMsg}</p> : null}
           <button
             style={{ background: 'var(--primary)', color: '#000', padding: '8px 20px', borderRadius: 8, fontWeight: 700 }}
             onClick={(e) => { e.stopPropagation(); setHasError(false); setIsLoading(true); videoRef.current?.load(); }}
@@ -404,7 +437,7 @@ export default function VideoPlayer({
             {/* Subtitles */}
             {subtitles.length > 0 && (
               <button
-                onClick={(e) => { e.stopPropagation(); setShowSubs((s) => !s); setShowQuality(false); }}
+                onClick={(e) => { e.stopPropagation(); setShowSubs((s) => !s); setShowQuality(false); setShowFontSize(false); }}
                 style={{
                   background: selectedSub ? 'rgba(0,217,255,0.25)' : 'rgba(255,255,255,0.15)',
                   backdropFilter: 'blur(8px)',
@@ -416,6 +449,22 @@ export default function VideoPlayer({
                 }}
               >
                 CC {subtitles.length}
+              </button>
+            )}
+            {/* Font size (Aa) */}
+            {subtitles.length > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowFontSize((f) => !f); setShowSubs(false); setShowQuality(false); }}
+                style={{
+                  background: showFontSize ? 'rgba(0,217,255,0.25)' : 'rgba(255,255,255,0.15)',
+                  backdropFilter: 'blur(8px)',
+                  border: `1px solid ${showFontSize ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`,
+                  borderRadius: 8, padding: '8px 14px',
+                  color: showFontSize ? 'var(--primary)' : '#fff',
+                  fontSize: 13, fontWeight: 700,
+                }}
+              >
+                Aa
               </button>
             )}
             {/* Fullscreen */}
@@ -462,6 +511,35 @@ export default function VideoPlayer({
               }}
             >
               {q.quality}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── FONT SIZE PICKER ── */}
+      {showFontSize && (
+        <div
+          style={{
+            position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 12, padding: '10px 16px', zIndex: 20,
+            display: 'flex', gap: 12, alignItems: 'center',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(['small', 'medium', 'large'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={(e) => { e.stopPropagation(); setFontSize(s); }}
+              style={{
+                padding: '8px 14px', borderRadius: 8,
+                background: fontSize === s ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                color: fontSize === s ? '#000' : '#fff',
+                fontSize: s === 'small' ? 11 : s === 'large' ? 17 : 14,
+                fontWeight: 700, border: 'none',
+              }}
+            >
+              {s === 'small' ? 'A' : s === 'medium' ? 'Aa' : 'AA'}
             </button>
           ))}
         </div>

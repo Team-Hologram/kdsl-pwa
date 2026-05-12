@@ -71,19 +71,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           if (!Array.prototype.toReversed) {
             Array.prototype.toReversed = function() { return [...this].reverse(); };
           }
-          // Global JS error overlay (dev diagnostic — remove in production)
-          window.addEventListener('error', function(e) {
-            var d = document.createElement('div');
-            d.style.cssText = 'position:fixed;bottom:100px;left:8px;right:8px;background:#ff4757;color:#fff;padding:10px;font:11px monospace;z-index:99999;border-radius:8px;word-break:break-all';
-            d.textContent = 'JS Error: ' + e.message + ' @ ' + (e.filename||'').split('/').pop() + ':' + e.lineno;
-            document.body.appendChild(d);
-          });
-          window.addEventListener('unhandledrejection', function(e) {
-            var d = document.createElement('div');
-            d.style.cssText = 'position:fixed;bottom:160px;left:8px;right:8px;background:#ff6b35;color:#fff;padding:10px;font:11px monospace;z-index:99999;border-radius:8px;word-break:break-all';
-            d.textContent = 'Promise: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
-            document.body.appendChild(d);
-          });
         `}} />
         {/* iOS PWA full-screen */}
         <meta name="mobile-web-app-capable" content="yes" />
