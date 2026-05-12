@@ -56,10 +56,14 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
   const [cueState, setCueState] = useState<CueState>({ url:'', cues:[] });
   const [currentTime, setCurrentTime] = useState(0);
   const [fontSize, setFontSize] = useState(17);
-  // Actual pixel dimensions for correct landscape sizing on all devices
+  // Physical screen dimensions — same concept as Android Dimensions.get('window').
+  // screen.height includes Dynamic Island/status bar; window.innerHeight excludes it → gap on 16 Pro.
   const [winSize, setWinSize] = useState({ w: 375, h: 667 });
   useEffect(() => {
-    const update = () => setWinSize({ w: window.innerWidth, h: window.innerHeight });
+    const update = () => setWinSize({
+      w: Math.min(screen.width, screen.height),  // portrait width (shorter side)
+      h: Math.max(screen.width, screen.height),  // portrait height (longer side, full device)
+    });
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
