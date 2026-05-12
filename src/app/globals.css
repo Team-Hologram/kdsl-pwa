@@ -87,7 +87,7 @@ body.video-player-active {
 
 /* ── Safe area helpers ── */
 .safe-top { padding-top: env(safe-area-inset-top); }
-.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+/* .safe-bottom { padding-bottom: env(safe-area-inset-bottom); } */
 
 /* ── Layout ── */
 .page-content {
@@ -234,7 +234,7 @@ body.video-player-active {
 /* ── Toast ── */
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .toast {
-  position: fixed; bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 16px);
+  position: fixed; bottom: calc(var(--nav-height) + 16px);
   left: 50%; transform: translateX(-50%);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
