@@ -36,7 +36,7 @@ ul, ol { list-style: none; }
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  --nav-height: 56px;
+  --nav-height: 50px;
   --header-height: 60px;
 }
 
@@ -94,7 +94,7 @@ main {
 
   padding-bottom:
     calc(
-      26px +
+      8px +
       env(safe-area-inset-bottom)
     );
 }
@@ -108,7 +108,7 @@ main {
 
   height:
     calc(
-      56px +
+      50px +
       env(safe-area-inset-bottom)
     );
 
@@ -157,8 +157,8 @@ main {
 }
 
 .bottom-nav-item svg {
-  width: 27px;
-  height: 27px;
+  width: 23px;
+  height: 23px;
 }
 
 .bottom-nav-item span {
