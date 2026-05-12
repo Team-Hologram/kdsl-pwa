@@ -1,23 +1,29 @@
 // src/app/api/proxy/subtitle/route.ts
-// Server-side proxy with browser-like headers to bypass Cloudflare Bot Fight Mode.
+// Server-side proxy for subtitle text.
 // We CANNOT redirect (browser fetch() gets CORS error on cross-origin redirect).
-// We CANNOT server-fetch without headers (Cloudflare returns 403).
-// Solution: fetch with spoofed browser User-Agent + return with CORS headers.
+// Solution: fetch server-side and return the text with same-origin/CORS-safe headers.
 
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-// Mimic a real iOS Safari request to pass Cloudflare Bot Fight Mode
-const BROWSER_HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 15_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.8 Mobile/15E148 Safari/604.1',
-  Accept: 'text/vtt,text/plain,text/*,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  Referer: 'https://kdsl-pwa.vercel.app/',
-  Origin: 'https://kdsl-pwa.vercel.app',
-};
+const SAFARI_UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 15_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.8 Mobile/15E148 Safari/604.1';
+
+const UPSTREAM_ATTEMPTS: RequestInit[] = [
+  {
+    headers: {
+      Accept: 'text/vtt,application/x-subrip,text/plain,text/*,*/*;q=0.8',
+    },
+  },
+  {
+    headers: {
+      'User-Agent': SAFARI_UA,
+      Accept: 'text/vtt,application/x-subrip,text/plain,text/*,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  },
+];
 
 export async function GET(request: NextRequest) {
   const B2_BASE_URL = (process.env.B2_BASE_URL ?? '').replace(/\/+$/, '');
@@ -34,12 +40,20 @@ export async function GET(request: NextRequest) {
   const b2Url = `${B2_BASE_URL}/${cleanPath}`;
 
   try {
-    const upstream = await fetch(b2Url, { headers: BROWSER_HEADERS });
+    let upstream: Response | null = null;
 
-    if (!upstream.ok) {
+    for (const init of UPSTREAM_ATTEMPTS) {
+      upstream = await fetch(b2Url, {
+        ...init,
+        cache: 'no-store',
+      });
+      if (upstream.ok || upstream.status !== 403) break;
+    }
+
+    if (!upstream?.ok) {
       return new NextResponse(
-        `Upstream error: HTTP ${upstream.status} for ${b2Url}`,
-        { status: upstream.status }
+        `Upstream subtitle error: HTTP ${upstream?.status ?? 502}`,
+        { status: upstream?.status ?? 502 }
       );
     }
 
@@ -54,8 +68,9 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'private, max-age=3600',
       },
     });
-  } catch (err: any) {
-    return new NextResponse(`Proxy fetch error: ${err.message}`, { status: 502 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return new NextResponse(`Proxy fetch error: ${message}`, { status: 502 });
   }
 }
 

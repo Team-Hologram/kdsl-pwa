@@ -36,6 +36,7 @@ function parseTime(t: string): number {
 }
 
 interface Cue { start: number; end: number; text: string }
+interface CueState { url: string; cues: Cue[] }
 
 function parseSubs(content: string): Cue[] {
   const cues: Cue[] = [];
@@ -78,41 +79,41 @@ export default function VideoPlayer({
   const [showQuality, setShowQuality] = useState(false);
 
   // Subtitle state
-  const defaultSub = subtitles.find((s) => s.language === 'si') ?? subtitles[0] ?? null;
-  const [selectedSub, setSelectedSub] = useState<Subtitle | null>(defaultSub);
-  const [cues, setCues] = useState<Cue[]>([]);
+  const defaultSub = subtitles.find((s) => s.language === 'si' || s.language === 'sinhala') ?? subtitles[0] ?? null;
+  const [selectedSubUrl, setSelectedSubUrl] = useState<string | null | undefined>(undefined);
+  const [cueState, setCueState] = useState<CueState>({ url: '', cues: [] });
   const [currentTime, setCurrentTime] = useState(0);
   const [fontSize, setFontSize] = useState(17);
   const [showSubMenu, setShowSubMenu] = useState(false);
 
-  const [subDebug, setSubDebug] = useState<string>('');
-
+  const selectedSub = selectedSubUrl === null
+    ? null
+    : subtitles.find((s) => s.url === selectedSubUrl) ?? defaultSub;
+  const cues = selectedSub?.url === cueState.url ? cueState.cues : [];
   const currentCue = cues.find((c) => currentTime >= c.start && currentTime <= c.end);
   const currentQuality = qualities.find((q) => q.url === currentSrc)?.quality ?? 'Auto';
 
   // Load selected subtitle file via fetch (same-origin proxy, no CORS issue)
   useEffect(() => {
-    setCues([]);
-    setSubDebug('');
-    if (!selectedSub?.url) {
-      setSubDebug('No sub selected / URL empty');
-      return;
-    }
-    setSubDebug(`Fetching: ${selectedSub.url}`);
-    fetch(selectedSub.url)
+    const controller = new AbortController();
+    if (!selectedSub?.url) return;
+
+    fetch(selectedSub.url, { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status} from proxy`);
         return r.text();
       })
       .then((text) => {
         const parsed = parseSubs(text);
-        setCues(parsed);
-        setSubDebug(`OK — ${parsed.length} cues loaded (${text.slice(0, 40).replace(/\n/g, '↵')})`);
+        setCueState({ url: selectedSub.url, cues: parsed });
       })
       .catch((e) => {
-        setCues([]);
-        setSubDebug(`Error: ${e.message}`);
+        if (e.name === 'AbortError') return;
+        setCueState({ url: selectedSub.url, cues: [] });
+        console.error('[VideoPlayer] subtitle load failed:', e);
       });
+
+    return () => controller.abort();
   }, [selectedSub?.url]);
 
   // Poll Vidstack currentTime for subtitle sync
@@ -159,21 +160,6 @@ export default function VideoPlayer({
         <MediaProvider />
         <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>
-
-      {/* ── SUBTITLE DEBUG BANNER (remove after fixing) ── */}
-      {subDebug ? (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(env(safe-area-inset-top) + 56px)',
-          left: 8, right: 8,
-          background: 'rgba(0,0,0,0.88)',
-          color: subDebug.startsWith('Error') ? '#ff6b6b' : subDebug.startsWith('OK') ? '#00ff88' : '#ffd700',
-          fontSize: 11, padding: '6px 10px', borderRadius: 6, zIndex: 9998,
-          wordBreak: 'break-all', lineHeight: 1.4,
-        }}>
-          🔤 {subDebug} | cues:{cues.length} | t:{Math.floor(currentTime)}s
-        </div>
-      ) : null}
 
       {/* ── JS Subtitle overlay (fetched via same-origin proxy, no crossOrigin needed) ── */}
       {currentCue && (
@@ -271,12 +257,12 @@ export default function VideoPlayer({
               border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: 12, overflow: 'hidden', minWidth: 140, zIndex: 100,
             }}>
-              <button onClick={() => { setSelectedSub(null); setShowSubMenu(false); }}
+              <button onClick={() => { setSelectedSubUrl(null); setShowSubMenu(false); }}
                 style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', fontSize: 14, color: !selectedSub ? 'var(--primary)' : '#fff', fontWeight: !selectedSub ? 700 : 400, background: 'none', border: 'none' }}>
                 Off
               </button>
               {subtitles.map((s) => (
-                <button key={s.language} onClick={() => { setSelectedSub(s); setShowSubMenu(false); }}
+                <button key={s.language} onClick={() => { setSelectedSubUrl(s.url); setShowSubMenu(false); }}
                   style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', fontSize: 14, color: selectedSub?.language === s.language ? 'var(--primary)' : '#fff', fontWeight: selectedSub?.language === s.language ? 700 : 400, background: 'none', border: 'none' }}>
                   {s.label}
                 </button>
