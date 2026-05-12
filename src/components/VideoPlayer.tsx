@@ -185,7 +185,7 @@ export default function VideoPlayer({
           background: 'rgba(0,0,0,0.55)',
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.15)',
+          border: 'none',
           color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
@@ -214,7 +214,7 @@ export default function VideoPlayer({
               height: 32, padding: '0 10px', borderRadius: 8,
               background: selectedSub ? 'rgba(0,217,255,0.25)' : 'rgba(0,0,0,0.55)',
               backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-              border: `1px solid ${selectedSub ? 'var(--primary)' : 'rgba(255,255,255,0.2)'}`,
+              border: 'none',
               color: selectedSub ? 'var(--primary)' : '#fff',
               fontSize: 12, fontWeight: 600,
             }}
@@ -226,7 +226,7 @@ export default function VideoPlayer({
               height: 32, padding: '0 10px', borderRadius: 8,
               background: 'rgba(0,0,0,0.55)',
               backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              border: 'none',
               color: '#fff', fontSize: 12, fontWeight: 700,
             }}
           >Aa</button>
@@ -266,7 +266,7 @@ export default function VideoPlayer({
               height: 32, padding: '0 12px', borderRadius: 8,
               background: 'rgba(0,0,0,0.55)',
               backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              border: 'none',
               color: '#fff', fontSize: 12, fontWeight: 600,
               display: 'flex', alignItems: 'center', gap: 5,
             }}

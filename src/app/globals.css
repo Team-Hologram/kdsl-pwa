@@ -286,3 +286,8 @@ html, body {
     visibility: hidden;
   }
 }
+
+/* ── Vidstack: hide top controls group — we use custom overlays instead ── */
+.vds-video-layout .vds-controls-group:first-child {
+  display: none !important;
+}
