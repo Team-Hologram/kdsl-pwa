@@ -1,7 +1,7 @@
 'use client';
 // src/components/VideoPlayer.tsx
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { VideoQuality, Subtitle } from '@/lib/types';
 
 interface Props {
@@ -32,19 +32,34 @@ function parseVttTime(t: string): number {
 
 interface Cue { start: number; end: number; text: string; }
 
+interface LoadedCues {
+  url: string;
+  cues: Cue[];
+}
+
+interface LockableScreenOrientation extends ScreenOrientation {
+  lock?: (orientation: string) => Promise<void>;
+}
+
+interface IOSVideoElement extends HTMLVideoElement {
+  webkitDisplayingFullscreen?: boolean;
+  webkitEnterFullscreen?: () => void;
+  webkitExitFullscreen?: () => void;
+}
+
 function parseVtt(content: string): Cue[] {
   const cues: Cue[] = [];
-  const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const lines = content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
-    if (line.includes('-->')) {
+    const timingMatch = line.match(/^(.+?)\s*-{2,}>\s*(.+)$/);
+    if (timingMatch) {
       // Split on --> and trim both sides
       // endRaw may have VTT extra params: "00:00:04.000 line:90% align:center"
       // SRT extra params:                "00:00:04,000  X1:0 X2:0 Y1:0 Y2:0"
-      const arrowIdx = line.indexOf('-->');
-      const startStr = line.slice(0, arrowIdx).trim();
-      const endRaw = line.slice(arrowIdx + 3).trim(); // trim removes leading space
+      const startStr = timingMatch[1].trim();
+      const endRaw = timingMatch[2].trim();
       const endStr = endRaw.split(/\s+/)[0]; // take only the timestamp token
 
       const start = parseVttTime(startStr);
@@ -84,9 +99,8 @@ export default function VideoPlayer({
   const [showFontSize, setShowFontSize] = useState(false);
   const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]?.url ?? videoUrl);
-  // Default: Sinhala first, else first available
-  const defaultSub = subtitles.find((s) => s.language === 'si') ?? subtitles[0] ?? null;
-  const [selectedSub, setSelectedSub] = useState<Subtitle | null>(defaultSub);
+  // undefined means "auto": Sinhala first, else first available.
+  const [selectedSubUrl, setSelectedSubUrl] = useState<string | null | undefined>(undefined);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,28 +108,47 @@ export default function VideoPlayer({
   const [errorMsg, setErrorMsg] = useState('');
 
   // JS subtitle state
-  const [cues, setCues] = useState<Cue[]>([]);
-  const [currentCue, setCurrentCue] = useState('');
+  const [loadedCues, setLoadedCues] = useState<LoadedCues | null>(null);
 
   const fontSizePx = fontSize === 'small' ? 13 : fontSize === 'large' ? 21 : 17;
+  const defaultSub = useMemo(
+    () => subtitles.find((s) => s.language === 'si') ?? subtitles[0] ?? null,
+    [subtitles],
+  );
+  const selectedSub = useMemo(() => {
+    if (selectedSubUrl === null) return null;
+    if (selectedSubUrl === undefined) return defaultSub;
+    return subtitles.find((s) => s.url === selectedSubUrl) ?? defaultSub;
+  }, [defaultSub, selectedSubUrl, subtitles]);
+  const cues = useMemo(
+    () => (loadedCues && loadedCues.url === selectedSub?.url ? loadedCues.cues : []),
+    [loadedCues, selectedSub?.url],
+  );
+  const currentCue = useMemo(() => {
+    if (!cues.length) return '';
+    return cues.find((c) => currentTime >= c.start && currentTime <= c.end)?.text ?? '';
+  }, [currentTime, cues]);
 
   // ── Load VTT file via fetch when selected sub changes ──
   useEffect(() => {
-    setCues([]);
-    setCurrentCue('');
-    if (!selectedSub?.url) return;
+    let cancelled = false;
+    if (!selectedSub?.url) return undefined;
     fetch(selectedSub.url)
-      .then((r) => r.text())
-      .then((text) => setCues(parseVtt(text)))
-      .catch(() => setCues([]));
+      .then((r) => {
+        if (!r.ok) throw new Error(`Subtitle request failed: ${r.status}`);
+        return r.text();
+      })
+      .then((text) => {
+        if (!cancelled) setLoadedCues({ url: selectedSub.url, cues: parseVtt(text) });
+      })
+      .catch((err) => {
+        console.error('[VideoPlayer] subtitle load failed', err);
+        if (!cancelled) setLoadedCues({ url: selectedSub.url, cues: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedSub?.url]);
-
-  // ── Update current cue based on playback position ──
-  useEffect(() => {
-    if (!cues.length) { setCurrentCue(''); return; }
-    const active = cues.find((c) => currentTime >= c.start && currentTime <= c.end);
-    setCurrentCue(active?.text ?? '');
-  }, [currentTime, cues]);
 
   // ── Autoplay after video is ready ──
   useEffect(() => {
@@ -134,7 +167,11 @@ export default function VideoPlayer({
     hideTimer.current = setTimeout(() => setShowControls(false), 3500);
   }, []);
 
-  useEffect(() => { resetHideTimer(); }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowControls(false), 3500);
+    hideTimer.current = timer;
+    return () => clearTimeout(timer);
+  }, []);
 
   // Fullscreen change listener (desktop)
   useEffect(() => {
@@ -166,20 +203,20 @@ export default function VideoPlayer({
   };
 
   const safeOrientationLock = (o: string) => {
-    try { (screen.orientation as any).lock?.(o)?.catch?.(() => {}); } catch {}
+    try { (screen.orientation as LockableScreenOrientation).lock?.(o)?.catch(() => {}); } catch {}
   };
 
   const toggleFullscreen = async () => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
-      const v = videoRef.current;
+      const v = videoRef.current as IOSVideoElement | null;
       if (!v) return;
       // webkitEnterFullscreen opens native iOS video player in landscape
-      if ((v as any).webkitDisplayingFullscreen) {
-        (v as any).webkitExitFullscreen?.();
+      if (v.webkitDisplayingFullscreen) {
+        v.webkitExitFullscreen?.();
         setIsFullscreen(false);
       } else {
-        (v as any).webkitEnterFullscreen?.();
+        v.webkitEnterFullscreen?.();
         setIsFullscreen(true);
       }
     } else {
@@ -210,7 +247,7 @@ export default function VideoPlayer({
   };
 
   const handleSubChange = (sub: Subtitle | null) => {
-    setSelectedSub(sub);
+    setSelectedSubUrl(sub?.url ?? null);
     setShowSubs(false);
     resetHideTimer();
   };
@@ -511,7 +548,7 @@ export default function VideoPlayer({
         <div style={{ position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,20,40,0.96)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '6px 0', zIndex: 20, minWidth: 140 }} onClick={(e) => e.stopPropagation()}>
           <button onClick={(e) => { e.stopPropagation(); handleSubChange(null); }} style={{ display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left', fontSize: 14, color: !selectedSub ? 'var(--primary)' : '#fff', fontWeight: !selectedSub ? 700 : 400, background: 'none', border: 'none' }}>Off</button>
           {subtitles.map((s) => (
-            <button key={s.language} onClick={(e) => { e.stopPropagation(); handleSubChange(s); }} style={{ display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left', fontSize: 14, color: selectedSub?.language === s.language ? 'var(--primary)' : '#fff', fontWeight: selectedSub?.language === s.language ? 700 : 400, background: 'none', border: 'none' }}>
+            <button key={s.url || s.language} onClick={(e) => { e.stopPropagation(); handleSubChange(s); }} style={{ display: 'block', width: '100%', padding: '10px 18px', textAlign: 'left', fontSize: 14, color: selectedSub?.url === s.url ? 'var(--primary)' : '#fff', fontWeight: selectedSub?.url === s.url ? 700 : 400, background: 'none', border: 'none' }}>
               {s.label}
             </button>
           ))}
