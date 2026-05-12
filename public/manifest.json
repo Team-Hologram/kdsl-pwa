@@ -5,8 +5,8 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0A0E27",
-  "theme_color": "#0A0E27",
+  "background_color": "#131829",
+  "theme_color": "#131829",
   "lang": "en",
   "categories": ["entertainment"],
   "icons": [
