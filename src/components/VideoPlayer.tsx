@@ -203,7 +203,7 @@ export default function VideoPlayer({
         {subtitles.length > 0 && (
           <div style={{ position: 'relative' }}>
             <button
-              className={`player-ctrl-btn ${selectedSub ? 'active' : ''}`}
+              className={`player-ctrl-btn player-ctrl-btn-text ${selectedSub ? 'active' : ''}`}
               onClick={() => { setShowSubMenu(v => !v); setShowQuality(false); }}
             >CC</button>
             {showSubMenu && (
@@ -222,7 +222,7 @@ export default function VideoPlayer({
         )}
 
         {/* Aa — font size cycle */}
-        <button className="player-ctrl-btn" onClick={() => setFontSize(s => s === 13 ? 17 : s === 17 ? 21 : 13)}>
+        <button className="player-ctrl-btn player-ctrl-btn-text" onClick={() => setFontSize(s => s === 13 ? 17 : s === 17 ? 21 : 13)}>
           Aa
         </button>
       </div>

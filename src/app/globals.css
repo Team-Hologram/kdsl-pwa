@@ -118,7 +118,7 @@ main {
       env(safe-area-inset-bottom)
     );
 
-  background: rgba(19,24,41,0.96);
+  background: #131829;
   border-top: 1px solid rgba(255,255,255,0.06);
 
   display: flex;
@@ -464,6 +464,13 @@ media-player video {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.player-ctrl-btn.player-ctrl-btn-text {
+  min-width: clamp(36px, 6%, 48px);
+  height: clamp(30px, 5%, 40px);
+  padding: 0 clamp(9px, 2%, 14px);
+  font-size: clamp(12px, 2%, 15px);
 }
 
 .player-ctrl-btn.active {
