@@ -2,6 +2,24 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.1.2'],
+  // Transpile Firebase packages through SWC so static class blocks and
+  // other ES2022+ syntax get compiled down for iOS 15 Safari compatibility
+  transpilePackages: [
+    'firebase',
+    '@firebase/app',
+    '@firebase/auth',
+    '@firebase/firestore',
+    '@firebase/messaging',
+    '@firebase/installations',
+    '@firebase/storage',
+    '@firebase/analytics',
+    '@firebase/app-check',
+    '@firebase/component',
+    '@firebase/util',
+    '@firebase/logger',
+    '@firebase/webchannel-wrapper',
+    '@firebase/data-connect',
+  ],
   // Allow images from external domains via the proxy, but keep origins server-side
   images: {
     remotePatterns: [],
