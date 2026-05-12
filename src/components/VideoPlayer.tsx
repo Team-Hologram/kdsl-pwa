@@ -214,7 +214,8 @@ export default function VideoPlayer({
         onPause={() => setPlaying(false)}
         onError={(e) => {
           const err = e.currentTarget.error;
-          const msg = err ? `Code ${err.code}: ${err.message || MediaError[err.code] || 'Unknown'}` : 'Unknown error';
+          const errLabels: Record<number,string> = {1:'Aborted',2:'Network',3:'Decode',4:'Format not supported'};
+          const msg = err ? `Code ${err.code}: ${err.message || errLabels[err.code] || 'Unknown'}` : 'Unknown error';
           console.error('[VideoPlayer] Error:', msg);
           setErrorMsg(msg);
           setIsLoading(false);
