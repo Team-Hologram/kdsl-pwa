@@ -287,7 +287,7 @@ html, body {
   }
 }
 
-/* ── Vidstack: hide top controls group — we use custom overlays instead ── */
-.vds-video-layout .vds-controls-group:first-child {
+/* ── Vidstack: hide built-in fullscreen button (replaced by CSS-rotation toggle) ── */
+.vds-fullscreen-button {
   display: none !important;
 }
