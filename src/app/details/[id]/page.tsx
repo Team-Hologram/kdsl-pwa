@@ -34,7 +34,7 @@ function QualityPicker({ qualities, onSelect, onClose }: { qualities: VideoQuali
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
         background: 'var(--bg-card)', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        padding: '12px 0 calc(var(--nav-height) + env(safe-area-inset-bottom) + 8px)',
+        padding: '12px 0 calc(var(--nav-height) + 8px)',
         animation: 'slideUp 0.25s ease-out',
       }}>
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 16px' }} />

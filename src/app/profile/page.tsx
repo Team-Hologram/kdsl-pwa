@@ -122,7 +122,7 @@ export default function ProfilePage() {
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
             background: 'var(--bg-card)', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            padding: '24px 24px calc(var(--nav-height) + env(safe-area-inset-bottom) + 16px)',
+            padding: '24px 24px calc(var(--nav-height) + 16px)',
             animation: 'slideUp 0.3s ease-out',
           }}>
             <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 20px' }} />

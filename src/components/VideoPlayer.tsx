@@ -259,12 +259,9 @@ export default function VideoPlayer({
             transformOrigin: 'center center',
             display: 'flex', flexDirection: 'column',
             background: '#000',
-            // After 90°CW rotation, CSS axes map to physical device edges:
-            //   CSS LEFT  → physical portrait TOP  → status bar / Dynamic Island
-            //   CSS RIGHT → physical portrait BOTTOM → home indicator bar
-            // Use safe-area-inset to push content away from both edges.
-            paddingLeft: 'env(safe-area-inset-top)',    // clears status bar
-            paddingRight: 'env(safe-area-inset-bottom)', // clears home indicator
+            // After 90deg CW rotation, CSS left maps to the physical portrait top.
+            paddingLeft: 'env(safe-area-inset-top)',
+            paddingRight: 0,
           }}
         >
           {playerEl}
@@ -281,7 +278,7 @@ export default function VideoPlayer({
         position: 'relative', width: '100%', height: '100dvh',
         background: '#000', overflow: 'hidden',
         paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingBottom: 0,
         display: 'flex', flexDirection: 'column',
       }}
     >

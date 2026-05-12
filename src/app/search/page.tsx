@@ -128,7 +128,7 @@ export default function SearchPage() {
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
             background: 'var(--bg-card)',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            padding: '12px 0 calc(var(--nav-height) + env(safe-area-inset-bottom) + 8px)',
+            padding: '12px 0 calc(var(--nav-height) + 8px)',
             maxHeight: '70vh', overflowY: 'auto',
             boxShadow: '0 -8px 40px rgba(0,0,0,0.5)',
             animation: 'slideUp 0.3s ease-out',
