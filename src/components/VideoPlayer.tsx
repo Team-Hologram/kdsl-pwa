@@ -1,4 +1,6 @@
 'use client';
+// src/components/VideoPlayer.tsx
+
 import { useRef, useState, useEffect } from 'react';
 import { MediaPlayer, MediaProvider, type MediaPlayerInstance } from '@vidstack/react';
 import { defaultLayoutIcons, DefaultVideoLayout } from '@vidstack/react/player/layouts/default';
@@ -56,14 +58,16 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
   const [cueState, setCueState] = useState<CueState>({ url:'', cues:[] });
   const [currentTime, setCurrentTime] = useState(0);
   const [fontSize, setFontSize] = useState(17);
-  // Physical screen dimensions — same concept as Android Dimensions.get('window').
-  // screen.height includes Dynamic Island/status bar; window.innerHeight excludes it → gap on 16 Pro.
-  const [winSize, setWinSize] = useState({ w: 375, h: 667 });
+
+  // Physical screen dimensions (like Android Dimensions.get('window'))
+  // screen.width/height = full device pixels including status bar, no gaps
+  const [W, setW] = useState(375); // portrait width
+  const [H, setH] = useState(667); // portrait height
   useEffect(() => {
-    const update = () => setWinSize({
-      w: Math.min(screen.width, screen.height),  // portrait width (shorter side)
-      h: Math.max(screen.width, screen.height),  // portrait height (longer side, full device)
-    });
+    const update = () => {
+      setW(Math.min(screen.width, screen.height));
+      setH(Math.max(screen.width, screen.height));
+    };
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
@@ -74,6 +78,7 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
   const currentCue = cues.find(c => currentTime >= c.start && currentTime <= c.end);
   const currentQuality = qualities.find(q=>q.url===currentSrc)?.quality ?? 'Auto';
 
+  // Fetch subtitle → parse for JS overlay + blob: URL for native track
   useEffect(() => {
     const ctrl = new AbortController();
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current=null; }
@@ -115,130 +120,135 @@ export default function VideoPlayer({ videoUrl, qualities, subtitles, title, onB
     setCurrentSrc(q.url); setShowQuality(false);
   };
 
-  // CSS landscape: rotate entire container 90deg using EXACT pixel dimensions
-  // window.innerWidth/innerHeight = true viewport pixels — works on iOS 15 (6s) + iOS 18 (16 Pro)
-  const W = winSize.w; // portrait screen width
-  const H = winSize.h; // portrait screen height
-  const landscapeStyle: React.CSSProperties = isLandscape ? {
-    position: 'fixed',
-    width: H,                       // element width = screen height (fills landscape width)
-    height: W,                      // element height = screen width (fills landscape height)
-    top: (H - W) / 2,              // center vertically
-    left: (W - H) / 2,             // center horizontally (negative = shifted left)
-    transform: 'rotate(90deg)',
-    transformOrigin: 'center center',
-    zIndex: 9999,
-    background: '#000',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-  } : {
-    position: 'relative',
-    width: '100%',
-    height: '100dvh',
-    background: '#000',
-    overflow: 'hidden',
-    paddingTop: 'env(safe-area-inset-top)',
-    paddingBottom: 'env(safe-area-inset-bottom)',
-    display: 'flex',
-    flexDirection: 'column',
-  };
-
   const btnBase: React.CSSProperties = {
     background: 'rgba(0,0,0,0.55)',
     backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
     border: 'none', color: '#fff', borderRadius: 8,
   };
 
+  // ── Shared player content (overlays stay inside MediaPlayer → survive any fullscreen mode) ──
+  const playerContent = (
+    <MediaPlayer
+      ref={playerRef} key={currentSrc} title={title} src={currentSrc} playsInline
+      {...(savedTime > 0 ? { currentTime: savedTime } : {})}
+      style={{ flex: 1, minHeight: 0, width: '100%', height: '100%', position: 'relative' }}
+    >
+      <MediaProvider />
+      <DefaultVideoLayout icons={defaultLayoutIcons} />
+
+      {/* Subtitle overlay */}
+      {currentCue && (
+        <div style={isLandscape ? {
+          // In 90deg CW rotation: CSS right → visual bottom (user holds phone landscape)
+          position: 'absolute', right: 60, top: 0, bottom: 0,
+          display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+          alignItems: 'center', zIndex: 9990, pointerEvents: 'none', paddingBottom: 8,
+        } : {
+          position: 'absolute', bottom: 72, left: 16, right: 16,
+          textAlign: 'center', zIndex: 9990, pointerEvents: 'none',
+        }}>
+          {currentCue.text.split('\n').map((line, i) => (
+            <div key={i} style={{ display:'block', background:'rgba(0,0,0,0.84)', color:'#fff', fontSize, fontWeight:500, padding:'3px 10px', borderRadius:4, lineHeight:1.5, marginBottom:2, textAlign:'center' }}>{line}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Back button */}
+      <button onClick={e => { e.stopPropagation(); onBack(); }}
+        style={{ ...btnBase, position:'absolute', top:12, left:14, zIndex:9999, width:40, height:40, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+
+      {/* Landscape toggle (bottom-right) */}
+      <button onClick={e => { e.stopPropagation(); setIsLandscape(v=>!v); }}
+        style={{ ...btnBase, position:'absolute', bottom:12, right: qualitySelectionEnabled && qualities.length>1 ? 58 : 14, zIndex:9999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8 }}>
+        {isLandscape
+          ? <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/></svg>
+          : <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        }
+      </button>
+
+      {/* CC + Aa */}
+      {subtitles.length > 0 && (
+        <div style={{ position:'absolute', top:12, right: qualitySelectionEnabled && qualities.length>1 ? 60 : 14, zIndex:9999, display:'flex', gap:6 }} onClick={e=>e.stopPropagation()}>
+          <button onClick={() => { setShowSubMenu(v=>!v); setShowQuality(false); }}
+            style={{ ...btnBase, height:32, padding:'0 10px', color: selectedSub ? '#00D9FF' : '#fff', background: selectedSub ? 'rgba(0,217,255,0.22)' : 'rgba(0,0,0,0.55)', fontSize:12, fontWeight:700 }}>CC</button>
+          <button onClick={() => setFontSize(s => s===13?17:s===17?21:13)}
+            style={{ ...btnBase, height:32, padding:'0 10px', fontSize:12, fontWeight:700 }}>Aa</button>
+          {showSubMenu && (
+            <div style={{ position:'absolute', top:38, right:0, background:'rgba(10,14,39,0.97)', borderRadius:12, overflow:'hidden', minWidth:140, zIndex:100 }}>
+              <button onClick={() => { setSelectedSubUrl(null); setShowSubMenu(false); }}
+                style={{ display:'block', width:'100%', padding:'10px 16px', textAlign:'left', fontSize:14, color:!selectedSub?'#00D9FF':'#fff', fontWeight:!selectedSub?700:400, background:'none', border:'none' }}>Off</button>
+              {subtitles.map(s => (
+                <button key={s.language} onClick={() => { setSelectedSubUrl(s.url); setShowSubMenu(false); }}
+                  style={{ display:'block', width:'100%', padding:'10px 16px', textAlign:'left', fontSize:14, color:selectedSub?.language===s.language?'#00D9FF':'#fff', fontWeight:selectedSub?.language===s.language?700:400, background:'none', border:'none' }}>{s.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Quality */}
+      {qualitySelectionEnabled && qualities.length > 1 && (
+        <div style={{ position:'absolute', top:12, right:14, zIndex:9999 }} onClick={e=>e.stopPropagation()}>
+          <button onClick={() => { setShowQuality(v=>!v); setShowSubMenu(false); }}
+            style={{ ...btnBase, height:32, padding:'0 12px', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" strokeLinecap="round"/></svg>
+            {currentQuality}
+          </button>
+          {showQuality && (
+            <div style={{ position:'absolute', top:38, right:0, background:'rgba(10,14,39,0.97)', borderRadius:12, overflow:'hidden', minWidth:110 }}>
+              {qualities.map(q => (
+                <button key={q.quality} onClick={() => handleQualityChange(q)}
+                  style={{ display:'block', width:'100%', padding:'10px 16px', textAlign:'left', fontSize:14, color:q.url===currentSrc?'#00D9FF':'#fff', fontWeight:q.url===currentSrc?700:400, background:'none', border:'none' }}>{q.quality}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </MediaPlayer>
+  );
+
+  // ── LANDSCAPE: outer div clips, inner div rotates ──────────────────────────
+  if (isLandscape) {
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: '#000', zIndex: 9999, overflow: 'hidden',
+      }}>
+        <div
+          style={{
+            // Inner: sized landscape (H wide × W tall), then rotated to fill portrait screen
+            position: 'absolute',
+            width: H, height: W,
+            top: (H - W) / 2,   // center vertically
+            left: (W - H) / 2,  // center horizontally (negative offset)
+            transform: 'rotate(90deg)',
+            transformOrigin: 'center center',
+            display: 'flex', flexDirection: 'column',
+            background: '#000',
+          }}
+          onClick={() => { setShowQuality(false); setShowSubMenu(false); }}
+        >
+          {playerContent}
+        </div>
+      </div>
+    );
+  }
+
+  // ── PORTRAIT ───────────────────────────────────────────────────────────────
   return (
-    <div style={landscapeStyle} onClick={() => { setShowQuality(false); setShowSubMenu(false); }}>
-      <MediaPlayer
-        ref={playerRef} key={currentSrc} title={title} src={currentSrc} playsInline
-        {...(savedTime > 0 ? { currentTime: savedTime } : {})}
-        style={{ flex: 1, minHeight: 0, width: '100%', height: '100%', position: 'relative' }}
-      >
-        <MediaProvider />
-        <DefaultVideoLayout icons={defaultLayoutIcons} />
-
-        {/* Subtitle overlay — position changes in landscape (90deg CW rotate):
-            portrait: bottom / centered horizontally
-            landscape: right (=visual bottom) / centered vertically  */}
-        {currentCue && (
-          <div style={isLandscape ? {
-            position: 'absolute',
-            right: 64,              // 90deg CW: right → user's visual bottom
-            top: 0, bottom: 0,
-            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-            alignItems: 'center',
-            zIndex: 9990, pointerEvents: 'none',
-            paddingBottom: 8,
-          } : {
-            position: 'absolute',
-            bottom: 72,
-            left: 16, right: 16,
-            textAlign: 'center',
-            zIndex: 9990, pointerEvents: 'none',
-          }}>
-            {currentCue.text.split('\n').map((line, i) => (
-              <div key={i} style={{ display:'block', background:'rgba(0,0,0,0.82)', color:'#fff', fontSize, fontWeight:500, padding:'3px 10px', borderRadius:4, lineHeight:1.5, marginBottom:2, textAlign:'center' }}>{line}</div>
-            ))}
-          </div>
-        )}
-
-        {/* Back button */}
-        <button onClick={e => { e.stopPropagation(); onBack(); }}
-          style={{ ...btnBase, position:'absolute', top:12, left:14, zIndex:9999, width:40, height:40, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-        </button>
-
-        {/* Fullscreen toggle button (bottom-right) */}
-        <button onClick={e => { e.stopPropagation(); setIsLandscape(v=>!v); }}
-          style={{ ...btnBase, position:'absolute', bottom:12, right: qualitySelectionEnabled && qualities.length>1 ? 58 : 14, zIndex:9999, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8 }}>
-          {isLandscape
-            ? <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/></svg>
-            : <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-          }
-        </button>
-
-        {/* CC + Aa */}
-        {subtitles.length > 0 && (
-          <div style={{ position:'absolute', top:12, right: qualitySelectionEnabled && qualities.length>1 ? 60 : 14, zIndex:9999, display:'flex', gap:6 }} onClick={e=>e.stopPropagation()}>
-            <button onClick={() => { setShowSubMenu(v=>!v); setShowQuality(false); }}
-              style={{ ...btnBase, height:32, padding:'0 10px', color: selectedSub ? '#00D9FF' : '#fff', background: selectedSub ? 'rgba(0,217,255,0.22)' : 'rgba(0,0,0,0.55)', fontSize:12, fontWeight:700 }}>CC</button>
-            <button onClick={() => setFontSize(s => s===13?17:s===17?21:13)}
-              style={{ ...btnBase, height:32, padding:'0 10px', fontSize:12, fontWeight:700 }}>Aa</button>
-            {showSubMenu && (
-              <div style={{ position:'absolute', top:38, right:0, background:'rgba(10,14,39,0.97)', borderRadius:12, overflow:'hidden', minWidth:140, zIndex:100 }}>
-                <button onClick={() => { setSelectedSubUrl(null); setShowSubMenu(false); }}
-                  style={{ display:'block', width:'100%', padding:'10px 16px', textAlign:'left', fontSize:14, color:!selectedSub?'#00D9FF':'#fff', fontWeight:!selectedSub?700:400, background:'none', border:'none' }}>Off</button>
-                {subtitles.map(s => (
-                  <button key={s.language} onClick={() => { setSelectedSubUrl(s.url); setShowSubMenu(false); }}
-                    style={{ display:'block', width:'100%', padding:'10px 16px', textAlign:'left', fontSize:14, color:selectedSub?.language===s.language?'#00D9FF':'#fff', fontWeight:selectedSub?.language===s.language?700:400, background:'none', border:'none' }}>{s.label}</button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Quality */}
-        {qualitySelectionEnabled && qualities.length > 1 && (
-          <div style={{ position:'absolute', top:12, right:14, zIndex:9999 }} onClick={e=>e.stopPropagation()}>
-            <button onClick={() => { setShowQuality(v=>!v); setShowSubMenu(false); }}
-              style={{ ...btnBase, height:32, padding:'0 12px', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" strokeLinecap="round"/></svg>
-              {currentQuality}
-            </button>
-            {showQuality && (
-              <div style={{ position:'absolute', top:38, right:0, background:'rgba(10,14,39,0.97)', borderRadius:12, overflow:'hidden', minWidth:110 }}>
-                {qualities.map(q => (
-                  <button key={q.quality} onClick={() => handleQualityChange(q)}
-                    style={{ display:'block', width:'100%', padding:'10px 16px', textAlign:'left', fontSize:14, color:q.url===currentSrc?'#00D9FF':'#fff', fontWeight:q.url===currentSrc?700:400, background:'none', border:'none' }}>{q.quality}</button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </MediaPlayer>
+    <div
+      style={{
+        position: 'relative', width: '100%', height: '100dvh',
+        background: '#000', overflow: 'hidden',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        display: 'flex', flexDirection: 'column',
+      }}
+      onClick={() => { setShowQuality(false); setShowSubMenu(false); }}
+    >
+      {playerContent}
     </div>
   );
 }

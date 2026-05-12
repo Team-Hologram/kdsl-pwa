@@ -287,7 +287,26 @@ html, body {
   }
 }
 
-/* ── Vidstack: hide built-in fullscreen button (replaced by CSS-rotation toggle) ── */
+/* ── Vidstack: overrides ─────────────────────────────────────────────────── */
+
+/* Hide built-in fullscreen button (replaced by our CSS-rotation toggle) */
 .vds-fullscreen-button {
   display: none !important;
+}
+
+/* Hide seek thumbnail preview (shows as black box when rotated) */
+.vds-thumbnail,
+.vds-slider-thumbnail {
+  display: none !important;
+}
+
+/* Force media-player + video to fill their container on all devices */
+media-player {
+  width: 100% !important;
+  height: 100% !important;
+}
+media-player video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
 }
