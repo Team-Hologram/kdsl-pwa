@@ -20,9 +20,11 @@ function formatTime(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-// ── VTT parser (handles both MM:SS.mmm and HH:MM:SS.mmm) ──
+// ── VTT/SRT parser — handles both HH:MM:SS.mmm (VTT) and HH:MM:SS,mmm (SRT) ──
 function parseVttTime(t: string): number {
-  const parts = t.trim().split(':').map(Number);
+  // Normalize SRT comma separator to VTT dot
+  const normalized = t.trim().replace(',', '.');
+  const parts = normalized.split(':').map(Number);
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   return 0;
@@ -159,8 +161,16 @@ export default function VideoPlayer({
   const toggleFullscreen = async () => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isIOS) {
-      // iOS PWA: just toggle state — CSS handles fixed overlay (no rotation trick)
-      setIsFullscreen((f) => !f);
+      const v = videoRef.current;
+      if (!v) return;
+      // webkitEnterFullscreen opens native iOS video player in landscape
+      if ((v as any).webkitDisplayingFullscreen) {
+        (v as any).webkitExitFullscreen?.();
+        setIsFullscreen(false);
+      } else {
+        (v as any).webkitEnterFullscreen?.();
+        setIsFullscreen(true);
+      }
     } else {
       const el = containerRef.current;
       if (!el) return;
@@ -228,6 +238,7 @@ export default function VideoPlayer({
         src={selectedQuality || videoUrl}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
         playsInline
+        autoPlay
         preload="auto"
         muted={muted}
         onLoadStart={() => { setIsLoading(true); setHasError(false); }}
