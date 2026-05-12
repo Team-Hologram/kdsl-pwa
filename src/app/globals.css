@@ -69,6 +69,28 @@ html, body {
   overflow-x: hidden;
 }
 
+body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: env(safe-area-inset-bottom);
+  background: var(--bg-card);
+  pointer-events: none;
+  z-index: 99;
+}
+
+html.video-player-active,
+body.video-player-active {
+  background: #000 !important;
+}
+
+body.video-player-active::after {
+  background: #000;
+  z-index: 10000;
+}
+
 #__next, main { min-height: 100%; }
 
 /* ── Scrollbar (WebKit) ── */
@@ -362,10 +384,10 @@ media-player video {
   border: none; color: #fff; cursor: pointer;
 }
 
-/* Fullscreen toggle — bottom-left, % units */
+/* Fullscreen toggle — bottom-right in portrait, visual right in rotated fullscreen */
 .player-btn-fs {
   position: absolute;
-  bottom: 3%; left: 2%;
+  bottom: 3%; right: 2%;
   z-index: 9999;
   width: clamp(28px, 5%, 38px);
   height: clamp(28px, 5%, 38px);
@@ -375,6 +397,15 @@ media-player video {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: none; color: #fff; cursor: pointer;
+}
+
+@container (min-width: 500px) {
+  .player-btn-fs {
+    top: 3%;
+    bottom: auto;
+    left: 2%;
+    right: auto;
+  }
 }
 
 /* Controls cluster (Quality | CC | Aa) — top-right, % units */

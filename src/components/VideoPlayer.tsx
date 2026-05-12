@@ -59,6 +59,19 @@ export default function VideoPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [fontSize, setFontSize] = useState(17);
 
+  useEffect(() => {
+    const themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const previousThemeColor = themeMeta?.content;
+    document.documentElement.classList.add('video-player-active');
+    document.body.classList.add('video-player-active');
+    if (themeMeta) themeMeta.content = '#000000';
+    return () => {
+      document.documentElement.classList.remove('video-player-active');
+      document.body.classList.remove('video-player-active');
+      if (themeMeta && previousThemeColor) themeMeta.content = previousThemeColor;
+    };
+  }, []);
+
   // Physical screen dimensions — like Android Dimensions.get('window'), includes status bar
   const [PW, setPW] = useState(375);
   const [PH, setPH] = useState(667);
@@ -84,7 +97,10 @@ export default function VideoPlayer({
     const ctrl = new AbortController();
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     document.querySelectorAll('track[data-cs]').forEach(t => t.remove());
-    if (!selectedSub?.url) { setCueState({ url: '', cues: [] }); return; }
+    if (!selectedSub?.url) {
+      const id = window.setTimeout(() => setCueState({ url: '', cues: [] }), 0);
+      return () => window.clearTimeout(id);
+    }
     fetch(selectedSub.url, { signal: ctrl.signal })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
       .then(text => {
@@ -112,7 +128,7 @@ export default function VideoPlayer({
       if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
       document.querySelectorAll('track[data-cs]').forEach(t => t.remove());
     };
-  }, [selectedSub?.url]);
+  }, [selectedSub?.url, selectedSub?.label, selectedSub?.language]);
 
   useEffect(() => {
     const id = setInterval(() => {
