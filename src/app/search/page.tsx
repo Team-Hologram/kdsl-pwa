@@ -1,10 +1,9 @@
 'use client';
 // src/app/search/page.tsx
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMediaContext } from '@/context/MediaContext';
-import { Media } from '@/lib/types';
 import MediaCard from '@/components/MediaCard';
 
 export default function SearchPage() {
@@ -25,10 +24,10 @@ export default function SearchPage() {
   }, [all, query, selectedGenre]);
 
   return (
-    <div className="page-content" style={{ paddingTop: 0 }}>
+    <div className="page-content" style={{ paddingTop: 0, height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Top bar */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 20,
+        flexShrink: 0,
         background: 'var(--bg)',
         paddingTop: 'calc(env(safe-area-inset-top) + 12px)',
         paddingBottom: 12,
@@ -98,24 +97,26 @@ export default function SearchPage() {
       </div>
 
       {/* Results grid */}
-      {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
-          {[...Array(8)].map((_, i) => <div key={i} className="skeleton" style={{ height: 260, borderRadius: 12 }} />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 16 }}>
-          <svg width={64} height={64} viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.5}>
-            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
-          </svg>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 16 }}>No results found</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
-          {filtered.map((m) => (
-            <MediaCard key={m.id} media={m} onPress={() => router.push(`/details/${m.id}`)} />
-          ))}
-        </div>
-      )}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        {loading ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
+            {[...Array(8)].map((_, i) => <div key={i} className="skeleton" style={{ height: 260, borderRadius: 12 }} />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            <svg width={64} height={64} viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={1.5}>
+              <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
+            </svg>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 16 }}>No results found</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
+            {filtered.map((m) => (
+              <MediaCard key={m.id} media={m} onPress={() => router.push(`/details/${m.id}`)} />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Filter bottom sheet */}
       {showFilter && (
