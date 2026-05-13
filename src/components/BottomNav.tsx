@@ -29,7 +29,14 @@ const tabs = [
     href: '/notifications', label: 'Alerts', isNotif: true,
     icon: (active: boolean) => (
       <svg viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={active ? 0 : 2}>
-        <path d="M15 17H9m6 0a3 3 0 11-6 0m6 0H5.5A1.5 1.5 0 014 15.5V14c0-2.21 1.56-4.09 3.75-4.69A5 5 0 0117 14v1.5a1.5 1.5 0 01-1.5 1.5H15z" strokeLinecap="round" strokeLinejoin="round" />
+        {active ? (
+          <path d="M12 22a2.5 2.5 0 002.45-2h-4.9A2.5 2.5 0 0012 22zm7-6.5V11a7 7 0 00-14 0v4.5l-1.7 2.27A1.4 1.4 0 004.42 20h15.16a1.4 1.4 0 001.12-2.23L19 15.5z" />
+        ) : (
+          <>
+            <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )}
       </svg>
     ),
   },
