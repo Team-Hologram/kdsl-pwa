@@ -8,6 +8,7 @@ import { useLocalUser } from '@/hooks/useLocalUser';
 import { Episode, VideoQuality } from '@/lib/types';
 import { fetchEpisodes } from '@/lib/mediaService';
 import { buildDownloadUrl } from '@/lib/proxyUrl';
+import { proxyVideoUrl, proxySubtitleUrl } from '@/lib/proxyUrl';
 
 function DetailsSkeletonContent() {
   return (
@@ -67,6 +68,32 @@ function downloadQualities(ep: Episode, fallbackQualities: VideoQuality[] = []):
   return [{ quality: 'offline', url: ep.videoUrl, fileId: ep.videoFileId }];
 }
 
+// ── IndexedDB helpers (same schema as downloads/page.tsx) ─────────────────
+const DB_NAME = 'kdramasl_downloads';
+const DB_VERSION = 1;
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs');
+    };
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function saveDownload(id: string, meta: object, blob: Blob): Promise<void> {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(['meta', 'blobs'], 'readwrite');
+    tx.objectStore('meta').put({ id, ...meta, downloadedAt: new Date().toISOString() });
+    tx.objectStore('blobs').put(blob, id);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
 export default function DetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -111,45 +138,56 @@ export default function DetailsPage() {
 
   const handleDownload = async (ep: Episode, quality: VideoQuality) => {
     if (!quality.fileId) { showToast('Download URL not available'); return; }
-    const subtitleIds = ep.subtitles.map((s) => s.fileId).filter(Boolean) as string[];
     const name = isMovie ? media.title : `${media.title} - EP${ep.episodeNumber}`;
-    const dlUrl = buildDownloadUrl(quality.fileId, subtitleIds, name);
     setQualityEpisode(null);
-    showToast(`Preparing ${name} (${quality.quality})...`);
-
+    showToast(`Starting download: ${name} (${quality.quality})…`);
     try {
-      const response = await fetch(dlUrl);
+      // ── Use SAME proxy URL as streaming ──────────────────────────────────
+      // /api/proxy/video → 302 → CDN URL (Cloudflare CORS rule applies)
+      // Browser fetches CDN directly — no server-side Vercel→Cloudflare 403
+      const videoRes = await fetch(proxyVideoUrl(quality.fileId));
+      if (!videoRes.ok) { showToast(`Download failed (${videoRes.status})`); return; }
+      const videoBlob = await videoRes.blob();
 
-      if (!response.ok) {
-        // Clone to safely read JSON without consuming the body stream
-        let errorMsg = `Download failed (${response.status})`;
+      // ── Build ZIP client-side with JSZip ─────────────────────────────────
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      const ext = quality.fileId.split('.').pop()?.toLowerCase() ?? 'mp4';
+      zip.file(`video.${ext}`, videoBlob);
+
+      // Subtitles
+      for (const sub of ep.subtitles) {
+        if (!sub.fileId) continue;
         try {
-          const data = await response.clone().json() as { error?: string } | null;
-          if (data?.error) errorMsg = data.error;
-        } catch {
-          // JSON parse failed — keep the status-code message
-        }
-        showToast(errorMsg);
-        return;
+          const subRes = await fetch(proxySubtitleUrl(sub.fileId));
+          if (!subRes.ok) continue;
+          const langMatch = sub.fileId.match(/([a-z]{2,3})\.(vtt|srt|ass)$/i);
+          const lang = langMatch ? langMatch[1] : sub.language ?? 'sub';
+          const subExt = sub.fileId.split('.').pop() ?? 'vtt';
+          zip.file(`subtitles/${lang}.${subExt}`, await subRes.blob());
+        } catch { /* skip failed subtitle */ }
       }
 
-      const blob = await response.blob();
-      if (!blob.type.includes('zip') && blob.size < 1024) {
-        showToast('Download failed: invalid file received');
-        return;
-      }
+      showToast(`Packaging ${name}…`);
+      const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
 
-      const objectUrl = URL.createObjectURL(blob);
+      // ── Save to IndexedDB for offline playback ───────────────────────────
+      await saveDownload(ep.id, {
+        title: name,
+        thumbnail: ep.thumbnail,
+        mediaId: media.id,
+        episodeId: isMovie ? undefined : ep.id,
+      }, zipBlob);
+
+      // ── Trigger device download ──────────────────────────────────────────
+      const objUrl = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
-      a.href = objectUrl;
-      a.download = `${name}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
-      showToast(`Downloading ${name} (${quality.quality})...`);
-    } catch (error) {
-      console.error('[Details] download error', error);
+      a.href = objUrl; a.download = `${name}.zip`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 30_000);
+      showToast(`✓ ${name} saved to Downloads`);
+    } catch (err) {
+      console.error('[Details] download error', err);
       showToast('Download failed: network error');
     }
   };
