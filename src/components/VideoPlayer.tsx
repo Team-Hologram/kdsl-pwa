@@ -154,23 +154,48 @@ export default function VideoPlayer({
     lastFontCycleAtRef.current = now;
     cycleFontSize();
   };
-  const subtitleStyle: CSSProperties | undefined = isLandscape
-    ? {
-        left: 36,
-        right: 64,
-        bottom: 56,
-        zIndex: 100000,
-      }
-    : undefined;
+  const subtitleLines = currentCue?.text.split('\n') ?? [];
+  const portraitSubtitleStyle: CSSProperties | undefined = isLandscape ? { display: 'none' } : undefined;
+  const landscapeSubtitleOverlay = currentCue && isLandscape ? (
+    <div
+      style={{
+        position: 'absolute',
+        width: PH,
+        height: PW,
+        top: (PH - PW) / 2,
+        left: (PW - PH) / 2,
+        transform: 'rotate(90deg)',
+        transformOrigin: 'center center',
+        pointerEvents: 'none',
+        zIndex: 2147483647,
+      }}
+    >
+      <div
+        className="player-sub"
+        style={{
+          left: 28,
+          right: 58,
+          bottom: 48,
+          zIndex: 2147483647,
+        }}
+      >
+        <div className="player-sub-inner">
+          {subtitleLines.map((line, i) => (
+            <span key={i} className="player-sub-line" style={{ fontSize }}>{line}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   // ── Custom overlays (CSS classes → container queries in globals.css) ────────
   const overlays = (
     <>
       {/* Subtitle — .player-sub switches layout via @container(min-width:500px) */}
       {currentCue && (
-        <div className="player-sub" style={subtitleStyle}>
+        <div className="player-sub" style={portraitSubtitleStyle}>
           <div className="player-sub-inner">
-            {currentCue.text.split('\n').map((line, i) => (
+            {subtitleLines.map((line, i) => (
               <span key={i} className="player-sub-line" style={{ fontSize }}>{line}</span>
             ))}
           </div>
@@ -319,6 +344,7 @@ export default function VideoPlayer({
         >
           {playerEl}
         </div>
+        {landscapeSubtitleOverlay}
       </div>
     );
   }

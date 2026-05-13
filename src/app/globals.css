@@ -935,11 +935,7 @@ body.video-player-active {
 
 @media (orientation: landscape) and (max-height: 390px) {
   .kdrama-player.is-landscape .player-sub-line {
-    line-height: 1.00 !important;
+    line-height: 1.22 !important;
     padding: 2px 7px !important;
-    bottom: 19% !important;
   }
-  .kdrama-player.is-portrait .player-sub {
-  bottom: 19% !important;
-}
 }
