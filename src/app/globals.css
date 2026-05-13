@@ -923,29 +923,18 @@ body.video-player-active {
 
 /* Landscape subtitles: keep visible on short/older iPhones like iPhone 6s */
 .kdrama-player.is-landscape .player-sub {
-  left: max(42px, env(safe-area-inset-top)) !important;
-  right: 70px !important;
-  bottom: 62px !important;
   z-index: 100000 !important;
   transform: none !important;
 }
 
 .kdrama-player.is-landscape .player-sub-line {
   max-width: 100% !important;
-  font-size: clamp(13px, 2.1vw, 18px) !important;
   line-height: 1.28 !important;
   padding: 2px 8px !important;
 }
 
 @media (orientation: landscape) and (max-height: 390px) {
-  .kdrama-player.is-landscape .player-sub {
-    bottom: 54px !important;
-    left: 36px !important;
-    right: 64px !important;
-  }
-
   .kdrama-player.is-landscape .player-sub-line {
-    font-size: 13px !important;
     line-height: 1.22 !important;
     padding: 2px 7px !important;
   }

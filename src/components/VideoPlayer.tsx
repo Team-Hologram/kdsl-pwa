@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, type CSSProperties, type SyntheticEvent } from 'react';
 import { MediaPlayer, MediaProvider, type MediaPlayerInstance } from '@vidstack/react';
 import { defaultLayoutIcons, DefaultVideoLayout } from '@vidstack/react/player/layouts/default';
 import '@vidstack/react/player/styles/default/theme.css';
@@ -48,6 +48,7 @@ export default function VideoPlayer({
 }: Props) {
   const playerRef = useRef<MediaPlayerInstance>(null);
   const blobUrlRef = useRef<string | null>(null);
+  const lastFontCycleAtRef = useRef(0);
   const [currentSrc, setCurrentSrc] = useState(qualities[0]?.url ?? videoUrl);
   const [savedTime, setSavedTime] = useState(0);
   const [isLandscape, setIsLandscape] = useState(false);
@@ -144,13 +145,30 @@ export default function VideoPlayer({
   };
 
   const dismiss = () => { setShowQuality(false); setShowSubMenu(false); };
+  const cycleFontSize = () => setFontSize(s => s === 13 ? 17 : s === 17 ? 21 : 13);
+  const handleFontSizePress = (event: SyntheticEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const now = Date.now();
+    if (now - lastFontCycleAtRef.current < 250) return;
+    lastFontCycleAtRef.current = now;
+    cycleFontSize();
+  };
+  const subtitleStyle: CSSProperties | undefined = isLandscape
+    ? {
+        left: 36,
+        right: 64,
+        bottom: 56,
+        zIndex: 100000,
+      }
+    : undefined;
 
   // ── Custom overlays (CSS classes → container queries in globals.css) ────────
   const overlays = (
     <>
       {/* Subtitle — .player-sub switches layout via @container(min-width:500px) */}
       {currentCue && (
-        <div className="player-sub">
+        <div className="player-sub" style={subtitleStyle}>
           <div className="player-sub-inner">
             {currentCue.text.split('\n').map((line, i) => (
               <span key={i} className="player-sub-line" style={{ fontSize }}>{line}</span>
@@ -222,7 +240,12 @@ export default function VideoPlayer({
         )}
 
         {/* Aa — font size cycle */}
-        <button className="player-ctrl-btn player-ctrl-btn-text" onClick={() => setFontSize(s => s === 13 ? 17 : s === 17 ? 21 : 13)}>
+        <button
+          className="player-ctrl-btn player-ctrl-btn-text"
+          onPointerDown={handleFontSizePress}
+          onTouchStart={handleFontSizePress}
+          onClick={(event) => event.stopPropagation()}
+        >
           Aa
         </button>
       </div>
