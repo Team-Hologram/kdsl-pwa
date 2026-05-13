@@ -75,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* iOS PWA full-screen */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="monetag" content="22864a604781ea94182620567edbe0f1"></meta>
         {/* Disable phone number detection */}
         <meta name="format-detection" content="telephone=no" />
       </head>
