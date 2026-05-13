@@ -68,31 +68,6 @@ function downloadQualities(ep: Episode, fallbackQualities: VideoQuality[] = []):
   return [{ quality: 'offline', url: ep.videoUrl, fileId: ep.videoFileId }];
 }
 
-// ── IndexedDB helpers (same schema as downloads/page.tsx) ─────────────────
-const DB_NAME = 'kdramasl_downloads';
-const DB_VERSION = 1;
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((res, rej) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs');
-    };
-    req.onsuccess = () => res(req.result);
-    req.onerror = () => rej(req.error);
-  });
-}
-async function saveDownload(id: string, meta: object, blob: Blob): Promise<void> {
-  const db = await openDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(['meta', 'blobs'], 'readwrite');
-    tx.objectStore('meta').put({ id, ...meta, downloadedAt: new Date().toISOString() });
-    tx.objectStore('blobs').put(blob, id);
-    tx.oncomplete = () => res();
-    tx.onerror = () => rej(tx.error);
-  });
-}
 
 export default function DetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -171,21 +146,13 @@ export default function DetailsPage() {
       showToast(`Packaging ${name}…`);
       const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
 
-      // ── Save to IndexedDB for offline playback ───────────────────────────
-      await saveDownload(ep.id, {
-        title: name,
-        thumbnail: ep.thumbnail,
-        mediaId: media.id,
-        episodeId: isMovie ? undefined : ep.id,
-      }, zipBlob);
-
-      // ── Trigger device download ──────────────────────────────────────────
+      // ── Trigger device file download ─────────────────────────────────────
       const objUrl = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = objUrl; a.download = `${name}.zip`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(objUrl), 30_000);
-      showToast(`✓ ${name} saved to Downloads`);
+      showToast(`✓ ${name} downloaded`);
     } catch (err) {
       console.error('[Details] download error', err);
       showToast('Download failed: network error');

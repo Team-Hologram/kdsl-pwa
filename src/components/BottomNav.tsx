@@ -24,15 +24,7 @@ const tabs = [
       </svg>
     ),
   },
-  {
-    href: '/downloads', label: 'Downloads',
-    icon: (active: boolean) => (
-      <svg viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={active ? 0 : 2}>
-        <path d="M12 2v13m0 0l-4-4m4 4l4-4" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" />
-      </svg>
-    ),
-  },
+
   {
     href: '/notifications', label: 'Alerts', isNotif: true,
     icon: (active: boolean) => (
