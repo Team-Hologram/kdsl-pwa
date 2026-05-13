@@ -2,13 +2,14 @@
 // src/hooks/useFCM.ts
 // Uses dynamic imports for firebase/messaging to prevent crash on iOS < 16.4
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const FCM_TOKENS_COL = 'fcmTokens';
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? '';
 const STORAGE_KEY = 'kdramasl_pwa_device_id';
+const PROMPT_SEEN_KEY = 'kdramasl_pwa_notification_prompt_seen';
 
 type FcmCapability = {
   canUseFcm: boolean;
@@ -101,16 +102,45 @@ async function getFcmCapability(): Promise<FcmCapability> {
     };
   }
 
-  return {
-    canUseFcm: true,
-    installedPwa,
-    notificationPermission,
-  };
+  try {
+    const { isSupported } = await import('firebase/messaging');
+    const supported = await isSupported();
+    return {
+      canUseFcm: supported,
+      installedPwa,
+      notificationPermission,
+      reason: supported ? undefined : 'firebase-messaging-unsupported',
+    };
+  } catch (e) {
+    console.warn('[FCM] Support check failed:', e);
+    return {
+      canUseFcm: false,
+      installedPwa,
+      notificationPermission,
+      reason: 'firebase-messaging-import-failed',
+    };
+  }
+}
+
+function wasPromptSeen() {
+  try {
+    return localStorage.getItem(PROMPT_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markPromptSeen() {
+  try {
+    localStorage.setItem(PROMPT_SEEN_KEY, '1');
+  } catch {}
 }
 
 export function useFCM() {
   const registered = useRef(false);
   const capability = useRef<FcmCapability | null>(null);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+  const [registering, setRegistering] = useState(false);
 
   const saveDevice = useCallback(async (registration: DeviceRegistration) => {
     const deviceId = getOrCreateDeviceId();
@@ -161,19 +191,7 @@ export function useFCM() {
     }
 
     try {
-      const { getMessaging, getToken, isSupported } = await import('firebase/messaging');
-      const supported = await isSupported();
-      if (!supported) {
-        await saveDevice({
-          fcmToken: null,
-          fcmSupported: false,
-          installedPwa: currentCapability.installedPwa,
-          notificationPermission: Notification.permission,
-          unsupportedReason: 'firebase-messaging-unsupported',
-        });
-        return;
-      }
-
+      const { getMessaging, getToken } = await import('firebase/messaging');
       const { default: app } = await import('@/lib/firebase');
       const serviceWorkerRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       const messaging = getMessaging(app);
@@ -204,23 +222,43 @@ export function useFCM() {
   const requestPermission = useCallback(async () => {
     const currentCapability = capability.current ?? await getFcmCapability();
     capability.current = currentCapability;
+    setShowPermissionPrompt(false);
+    markPromptSeen();
 
     if (!currentCapability.canUseFcm || !('Notification' in window)) {
       await getAndSaveToken(currentCapability);
       return;
     }
 
-    const permission = await Notification.requestPermission();
-    await getAndSaveToken({
-      ...currentCapability,
-      notificationPermission: permission,
-    });
+    setRegistering(true);
+    try {
+      const permission = await Notification.requestPermission();
+      await getAndSaveToken({
+        ...currentCapability,
+        notificationPermission: permission,
+      });
+    } finally {
+      setRegistering(false);
+    }
   }, [getAndSaveToken]);
+
+  const dismissPermissionPrompt = useCallback(async () => {
+    const currentCapability = capability.current ?? await getFcmCapability();
+    capability.current = currentCapability;
+    setShowPermissionPrompt(false);
+    markPromptSeen();
+    await saveDevice({
+      fcmToken: null,
+      fcmSupported: currentCapability.canUseFcm,
+      installedPwa: currentCapability.installedPwa,
+      notificationPermission: currentCapability.notificationPermission,
+      unsupportedReason: currentCapability.reason,
+    });
+  }, [saveDevice]);
 
   useEffect(() => {
     if (registered.current) return;
     registered.current = true;
-    let removePermissionListeners: (() => void) | undefined;
 
     const register = async () => {
       const currentCapability = await getFcmCapability();
@@ -239,7 +277,7 @@ export function useFCM() {
         return;
       }
 
-      if (Notification.permission === 'denied') {
+      if (Notification.permission === 'denied' || wasPromptSeen()) {
         await saveDevice({
           fcmToken: null,
           fcmSupported: true,
@@ -249,27 +287,18 @@ export function useFCM() {
         return;
       }
 
-      let handled = false;
-      const requestOnInteraction = () => {
-        if (handled) return;
-        handled = true;
-        removePermissionListeners?.();
-        void requestPermission();
-      };
-
-      window.addEventListener('pointerdown', requestOnInteraction, { once: true, capture: true });
-      window.addEventListener('click', requestOnInteraction, { once: true, capture: true });
-      window.addEventListener('keydown', requestOnInteraction, { once: true, capture: true });
-      removePermissionListeners = () => {
-        window.removeEventListener('pointerdown', requestOnInteraction, { capture: true });
-        window.removeEventListener('click', requestOnInteraction, { capture: true });
-        window.removeEventListener('keydown', requestOnInteraction, { capture: true });
-      };
+      setShowPermissionPrompt(true);
     };
 
-    void register();
-    return () => {
-      removePermissionListeners?.();
-    };
-  }, [getAndSaveToken, requestPermission, saveDevice]);
+    // Delay slightly to not block initial render
+    const t = setTimeout(register, 2000);
+    return () => clearTimeout(t);
+  }, [getAndSaveToken, saveDevice]);
+
+  return {
+    showPermissionPrompt,
+    registering,
+    requestPermission,
+    dismissPermissionPrompt,
+  };
 }
