@@ -359,6 +359,24 @@ main {
 .vds-menu-button {
   display: none !important;
 }
+.vds-pip-button,
+.vds-picture-in-picture-button {
+  display: none !important;
+}
+
+media-player .vds-controls {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 26px) !important;
+}
+
+/* Time text + title row upward */
+media-player .vds-controls-group:last-child {
+  margin-bottom: calc(env(safe-area-inset-bottom) + 18px) !important;
+}
+
+/* Timeline/progress bar upward */
+media-player .vds-time-slider {
+  margin-bottom: 10px !important;
+}
 
 media-player {
   width: 100% !important;
@@ -422,8 +440,8 @@ media-player video {
 
 .player-btn-fs {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 25px;
+  right: 15px;
   z-index: 9999;
   width: clamp(28px, 5%, 38px);
   height: clamp(28px, 5%, 38px);
@@ -517,20 +535,6 @@ media-player video {
   border-radius: 4px;
   line-height: 1.55;
   margin-bottom: 2px;
-}
-
-media-player .vds-controls {
-  padding-bottom: 66px !important;
-}
-
-/* Time text + title row upward */
-media-player .vds-controls-group:last-child {
-  margin-bottom: 58px !important;
-}
-
-/* Timeline/progress bar upward */
-media-player .vds-time-slider {
-  margin-bottom: 50px !important;
 }
 
 /* ── Small iPhones ── */
