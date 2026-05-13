@@ -62,7 +62,7 @@ function applySafeAreaOffset() {
   const safeTop = readSafeAreaTop();
   if (safeTop <= 0) return;
 
-  const targetTop = safeTop + 20;
+  const targetTop = safeTop + 8;
   for (const element of Array.from(document.body.querySelectorAll('*'))) {
     if (!shouldMoveElement(element, safeTop)) continue;
     const rect = element.getBoundingClientRect();
@@ -75,6 +75,24 @@ function applySafeAreaOffset() {
     element.style.setProperty('max-height', `calc(100vh - ${targetTop}px)`, 'important');
     element.dataset.monetagSafeAreaAdjusted = '1';
   }
+}
+
+function installSafeAreaCover() {
+  const safeTop = readSafeAreaTop();
+  if (safeTop <= 0 || document.getElementById('monetag-safe-area-cover')) return;
+
+  const cover = document.createElement('div');
+  cover.id = 'monetag-safe-area-cover';
+  cover.setAttribute('aria-hidden', 'true');
+  cover.style.setProperty('position', 'fixed', 'important');
+  cover.style.setProperty('top', '0', 'important');
+  cover.style.setProperty('left', '0', 'important');
+  cover.style.setProperty('right', '0', 'important');
+  cover.style.setProperty('height', `${safeTop}px`, 'important');
+  cover.style.setProperty('background', 'var(--bg, #0A0E27)', 'important');
+  cover.style.setProperty('z-index', '2147483647', 'important');
+  cover.style.setProperty('pointer-events', 'none', 'important');
+  document.documentElement.appendChild(cover);
 }
 
 function installSafeAreaStyle() {
@@ -102,19 +120,25 @@ function installSafeAreaStyle() {
 
 export default function MonetagSafeAreaGuard() {
   useEffect(() => {
+    installSafeAreaCover();
     installSafeAreaStyle();
     applySafeAreaOffset();
 
     const observer = new MutationObserver(() => {
+      installSafeAreaCover();
       window.requestAnimationFrame(applySafeAreaOffset);
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
-    const interval = window.setInterval(applySafeAreaOffset, 1000);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    const interval = window.setInterval(() => {
+      installSafeAreaCover();
+      applySafeAreaOffset();
+    }, 1000);
 
     return () => {
       observer.disconnect();
       window.clearInterval(interval);
+      document.getElementById('monetag-safe-area-cover')?.remove();
     };
   }, []);
 
