@@ -617,3 +617,100 @@ media-player .vds-time-slider {
     font-size: 14px;
   }
 }
+
+/* FINAL PLAYER POSITION FIX */
+
+.kdrama-player {
+  width: 100% !important;
+  height: 100% !important;
+  background: #000 !important;
+  position: relative !important;
+}
+
+/* hide default unwanted Vidstack buttons */
+.kdrama-player .vds-fullscreen-button,
+.kdrama-player .vds-pip-button,
+.kdrama-player .vds-picture-in-picture-button,
+.kdrama-player .vds-settings-button,
+.kdrama-player .vds-settings-menu,
+.kdrama-player .vds-menu-button {
+  display: none !important;
+}
+
+/* Portrait top buttons */
+.kdrama-player.is-portrait .player-btn-back {
+  top: 10px !important;
+  left: 12px !important;
+}
+
+.kdrama-player.is-portrait .player-controls-cluster {
+  top: 10px !important;
+  right: 14px !important;
+}
+
+/* Portrait fullscreen button */
+.kdrama-player.is-portrait .player-btn-fs {
+  right: 14px !important;
+  bottom: 82px !important;
+  top: auto !important;
+  left: auto !important;
+}
+
+/* Portrait Vidstack bottom controls */
+.kdrama-player.is-portrait .vds-controls {
+  padding-bottom: 28px !important;
+}
+
+.kdrama-player.is-portrait .vds-controls-group:last-child {
+  margin-bottom: 16px !important;
+}
+
+.kdrama-player.is-portrait .vds-time-slider {
+  margin-bottom: 8px !important;
+}
+
+/* Landscape custom buttons after fake rotate */
+.kdrama-player.is-landscape .player-btn-back {
+  top: 12px !important;
+  left: 12px !important;
+}
+
+.kdrama-player.is-landscape .player-controls-cluster {
+  top: 12px !important;
+  right: 20px !important;
+  gap: 8px !important;
+}
+
+/* fullscreen exit button fully visible */
+.kdrama-player.is-landscape .player-btn-fs {
+  top: 12px !important;
+  right: 120px !important;
+  left: auto !important;
+  bottom: auto !important;
+}
+
+/* Landscape bottom controls */
+.kdrama-player.is-landscape .vds-controls {
+  padding-bottom: 18px !important;
+}
+
+.kdrama-player.is-landscape .vds-controls-group:last-child {
+  margin-bottom: 10px !important;
+}
+
+.kdrama-player.is-landscape .vds-time-slider {
+  margin-bottom: 6px !important;
+}
+
+/* Button sizes */
+.kdrama-player .player-btn-back,
+.kdrama-player .player-btn-fs {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+.kdrama-player .player-ctrl-btn-text {
+  min-width: 42px !important;
+  height: 34px !important;
+  font-size: 15px !important;
+}

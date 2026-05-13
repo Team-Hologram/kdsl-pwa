@@ -232,7 +232,12 @@ export default function VideoPlayer({
   // ── Player element ─────────────────────────────────────────────────────────
   const playerEl = (
     <MediaPlayer
-      ref={playerRef} key={currentSrc} title={title} src={currentSrc} playsInline
+      className={isLandscape ? 'kdrama-player is-landscape' : 'kdrama-player is-portrait'}
+      ref={playerRef}
+      key={currentSrc}
+      title={title}
+      src={currentSrc}
+      playsInline
       {...(savedTime > 0 ? { currentTime: savedTime } : {})}
       style={{ flex: 1, minHeight: 0, width: '100%', height: '100%', position: 'relative' }}
     >
@@ -287,13 +292,6 @@ export default function VideoPlayer({
             background: '#000',
 
             overflow: 'hidden',
-
-            paddingLeft: 'env(safe-area-inset-top)',
-
-            paddingTop: 'env(safe-area-inset-left)',
-
-            paddingBottom:
-              'max(10px, env(safe-area-inset-right))',
           }}
         >
           {playerEl}
