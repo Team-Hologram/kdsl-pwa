@@ -42,10 +42,6 @@ export default function ProfilePage() {
 
   const menuItems = [
     {
-      icon: '🎬', label: 'My Watchlist', subtitle: 'Saved dramas & movies',
-      action: () => router.push('/watchlist'),
-    },
-    {
       icon: theme === 'dark' ? '🌙' : '☀️', label: theme === 'dark' ? 'Dark Mode' : 'Light Mode',
       subtitle: 'Toggle app theme', isToggle: true,
       action: toggleTheme,
@@ -72,18 +68,15 @@ export default function ProfilePage() {
     <div className="page-content">
       {/* Header */}
       <div style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
-        padding: 'calc(env(safe-area-inset-top) + 24px) 20px 24px',
+        padding: 'calc(env(safe-area-inset-top) + 8px) 20px 20px',
         background: 'linear-gradient(135deg, rgba(0,217,255,0.08) 0%, rgba(123,47,255,0.06) 100%)',
         borderBottom: '1px solid var(--border)',
         textAlign: 'center',
       }}>
-        <div style={{
-          width: 80, height: 80, borderRadius: '50%', margin: '0 auto 12px',
-          background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 36,
-        }}>🎭</div>
+        {/* App logo */}
+        <div style={{ width: 80, height: 80, borderRadius: 20, margin: '0 auto 12px', overflow: 'hidden' }}>
+          <img src="/icons/icon-192.png" alt="KDrama SL" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>KDrama SL</h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>Your K-Drama companion</p>
       </div>
