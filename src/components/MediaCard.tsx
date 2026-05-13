@@ -2,6 +2,7 @@
 // src/components/MediaCard.tsx — matches Android app design
 
 import { Media } from '@/lib/types';
+import { loadMonetagOnclickAd } from '@/lib/monetagAds';
 
 interface Props {
   media: Media;
@@ -11,6 +12,7 @@ interface Props {
 export default function MediaCard({ media, onPress }: Props) {
   return (
     <div
+      onPointerDown={loadMonetagOnclickAd}
       onClick={onPress}
       style={{
         width: '100%', cursor: 'pointer',

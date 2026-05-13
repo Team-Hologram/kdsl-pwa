@@ -7,6 +7,7 @@ import { useMediaContext } from '@/context/MediaContext';
 import { useLocalUser } from '@/hooks/useLocalUser';
 import { Episode, VideoQuality } from '@/lib/types';
 import { fetchEpisodes } from '@/lib/mediaService';
+import { loadMonetagOnclickAd } from '@/lib/monetagAds';
 import { buildDownloadUrl } from '@/lib/proxyUrl';
 import { proxyVideoUrl, proxySubtitleUrl } from '@/lib/proxyUrl';
 
@@ -41,7 +42,7 @@ function QualityPicker({ qualities, onSelect, onClose }: { qualities: VideoQuali
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 16px' }} />
         <p style={{ padding: '0 20px 12px', fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>Select Quality</p>
         {qualities.map((q) => (
-          <button key={q.quality} onClick={() => onSelect(q)} style={{
+          <button key={q.quality} onPointerDown={loadMonetagOnclickAd} onClick={() => onSelect(q)} style={{
             display: 'flex', alignItems: 'center', gap: 14,
             width: '100%', padding: '14px 20px', textAlign: 'left',
             color: 'var(--text)', fontSize: 16,
@@ -283,7 +284,7 @@ export default function DetailsPage() {
               </div>
 
               {/* Play button */}
-              <button onClick={() => handlePlay(ep)} style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}>
+              <button onPointerDown={loadMonetagOnclickAd} onClick={() => handlePlay(ep)} style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}>
                 <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
                 </svg>
@@ -291,7 +292,7 @@ export default function DetailsPage() {
 
               {/* Download button */}
               {(ep.qualities.length > 0 || ep.videoFileId) && (
-                <button onClick={() => setQualityEpisode(ep)} style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}>
+                <button onPointerDown={loadMonetagOnclickAd} onClick={() => setQualityEpisode(ep)} style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}>
                   <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round"/>
                     <polyline points="7 10 12 15 17 10" strokeLinecap="round" strokeLinejoin="round"/>

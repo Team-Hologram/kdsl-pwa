@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Media } from '@/lib/types';
+import { loadMonetagOnclickAd } from '@/lib/monetagAds';
 
 interface Props { mediaList: Media[]; }
 
@@ -130,6 +131,7 @@ export default function HeroCarousel({ mediaList }: Props) {
           <button
             className="btn btn-primary"
             style={{ flex: 1, height: 46 }}
+            onPointerDown={loadMonetagOnclickAd}
             onClick={() => router.push(`/player?mediaId=${media.id}`)}
           >
             <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
