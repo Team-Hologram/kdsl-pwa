@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const MONETAG_VERIFICATION = '22864a604781ea94182620567edbe0f1';
+
 // iPhone UA detection — allow only iPhone Safari
 // iPads on iOS 13+ report as "Macintosh" so they are blocked automatically
 function isIphoneSafari(ua: string): boolean {
@@ -14,6 +16,7 @@ const BLOCKED_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="monetag" content="${MONETAG_VERIFICATION}" />
   <title>KDrama SL – iPhone Only</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -113,8 +116,9 @@ const BLOCKED_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isPublicFile = /\.[^/]+$/.test(pathname);
 
   // ── Always allow static/asset routes ──────────────────────────────────────
   if (
@@ -122,6 +126,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/icons/') ||
     pathname.startsWith('/splash/') ||
+    isPublicFile ||
     pathname === '/manifest.json' ||
     pathname === '/firebase-messaging-sw.js' ||
     pathname === '/favicon.ico'
