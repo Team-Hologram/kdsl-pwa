@@ -1,6 +1,7 @@
 {
   "name": "KDrama SL",
   "short_name": "KDrama SL",
+  "id": "/",
   "description": "Korean Dramas & Movies with Sinhala Subtitles",
   "start_url": "/",
   "display": "standalone",
