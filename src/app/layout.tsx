@@ -5,6 +5,7 @@ import './globals.css';
 import { MediaProvider } from '@/context/MediaContext';
 import { NotificationsProvider } from '@/context/NotificationsContext';
 import AppShell from '@/components/AppShell';
+import MonetagRouteGuard from '@/components/MonetagRouteGuard';
 
 export const metadata: Metadata = {
   title: 'KDrama SL',
@@ -101,6 +102,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <MediaProvider>
           <NotificationsProvider>
+            <MonetagRouteGuard />
             <AppShell>{children}</AppShell>
           </NotificationsProvider>
         </MediaProvider>
