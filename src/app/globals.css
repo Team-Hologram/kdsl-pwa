@@ -422,8 +422,8 @@ media-player video {
 
 .player-btn-fs {
   position: absolute;
-  bottom: 25px;
-  right: 15px;
+  bottom: 20px;
+  right: 20px;
   z-index: 9999;
   width: clamp(28px, 5%, 38px);
   height: clamp(28px, 5%, 38px);
@@ -520,17 +520,17 @@ media-player video {
 }
 
 media-player .vds-controls {
-  padding-bottom: 26px !important;
+  padding-bottom: 66px !important;
 }
 
 /* Time text + title row upward */
 media-player .vds-controls-group:last-child {
-  margin-bottom: 18px !important;
+  margin-bottom: 58px !important;
 }
 
 /* Timeline/progress bar upward */
 media-player .vds-time-slider {
-  margin-bottom: 10px !important;
+  margin-bottom: 50px !important;
 }
 
 /* ── Small iPhones ── */
