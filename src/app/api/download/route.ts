@@ -12,6 +12,17 @@ export const dynamic = 'force-dynamic';
 
 const B2_BASE_URL = (process.env.B2_BASE_URL ?? '').replace(/\/+$/, '');
 const B2_DIRECT_URL = (process.env.B2_DIRECT_URL ?? '').replace(/\/+$/, '');
+const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://kdramasl.site').replace(/\/+$/, '');
+
+// Headers that make Cloudflare treat server-side fetches as browser requests.
+// Without these the CDN returns 403 (bot protection blocks Vercel server IPs).
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Referer': `${SITE_ORIGIN}/`,
+  'Origin': SITE_ORIGIN,
+};
 
 function b2Urls(path: string) {
   if (/^https?:\/\//i.test(path)) return [path];
@@ -31,11 +42,12 @@ async function fetchB2(path: string) {
   let lastResponse: Response | null = null;
   for (const url of b2Urls(path)) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: BROWSER_HEADERS });
       if (response.ok) return response;
       lastResponse = response;
+      // Don't retry on 403/401 from same base — try next URL candidate
     } catch {
-      // Try the next configured URL candidate.
+      // Network error — try the next URL candidate
     }
   }
   return lastResponse;
@@ -93,8 +105,10 @@ export async function GET(request: NextRequest) {
   // Fetch the video stream from B2
   const videoResponse = await fetchB2(videoId);
   if (!videoResponse?.ok) {
+    const status = videoResponse?.status ?? 0;
+    console.error(`[download] B2 video fetch failed — id="${videoId}" status=${status}`);
     return NextResponse.json(
-      { error: `Video not found${videoResponse ? ` (${videoResponse.status})` : ''}` },
+      { error: `Video not found (${status})` },
       { status: 404 },
     );
   }
