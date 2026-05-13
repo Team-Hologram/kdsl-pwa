@@ -41,7 +41,7 @@ function QualityPicker({ qualities, onSelect, onClose }: { qualities: VideoQuali
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 16px' }} />
         <p style={{ padding: '0 20px 12px', fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>Select Quality</p>
         {qualities.map((q) => (
-          <button key={q.quality} onPointerDown={loadMonetagOnclickAd} onClick={() => onSelect(q)} style={{
+          <button key={q.quality} onClick={() => onSelect(q)} style={{
             display: 'flex', alignItems: 'center', gap: 14,
             width: '100%', padding: '14px 20px', textAlign: 'left',
             color: 'var(--text)', fontSize: 16,
@@ -80,6 +80,8 @@ export default function DetailsPage() {
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [qualityEpisode, setQualityEpisode] = useState<Episode | null>(null);
   const [toast, setToast] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadStatus, setDownloadStatus] = useState('');
   const episodeCacheVersion = media?.totalEpisodes ?? null;
   const mediaType = media?.type;
 
@@ -116,9 +118,12 @@ export default function DetailsPage() {
   };
 
   const handleDownload = async (ep: Episode, quality: VideoQuality) => {
+    if (downloadingId) return;
     if (!quality.fileId) { showToast('Download URL not available'); return; }
     const name = isMovie ? media.title : `${media.title} - EP${ep.episodeNumber}`;
     setQualityEpisode(null);
+    setDownloadingId(ep.id);
+    setDownloadStatus(`Downloading ${quality.quality}...`);
     showToast(`Starting download: ${name} (${quality.quality})…`);
     try {
       // ── Use SAME proxy URL as streaming ──────────────────────────────────
@@ -135,6 +140,7 @@ export default function DetailsPage() {
       zip.file(`video.${ext}`, videoBlob);
 
       // Subtitles
+      setDownloadStatus('Adding subtitles...');
       for (const sub of ep.subtitles) {
         if (!sub.fileId) continue;
         try {
@@ -147,6 +153,7 @@ export default function DetailsPage() {
         } catch { /* skip failed subtitle */ }
       }
 
+      setDownloadStatus('Packaging ZIP...');
       showToast(`Packaging ${name}…`);
       const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
 
@@ -160,6 +167,9 @@ export default function DetailsPage() {
     } catch (err) {
       console.error('[Details] download error', err);
       showToast('Download failed: network error');
+    } finally {
+      setDownloadingId(null);
+      setDownloadStatus('');
     }
   };
 
@@ -295,12 +305,28 @@ export default function DetailsPage() {
 
               {/* Download button */}
               {(ep.qualities.length > 0 || ep.videoFileId) && (
-                <button onPointerDown={loadMonetagOnclickAd} onClick={() => setQualityEpisode(ep)} style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}>
-                  <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round"/>
-                    <polyline points="7 10 12 15 17 10" strokeLinecap="round" strokeLinejoin="round"/>
-                    <line x1="12" y1="15" x2="12" y2="3" strokeLinecap="round"/>
-                  </svg>
+                <button
+                  onPointerDown={downloadingId ? undefined : loadMonetagOnclickAd}
+                  onClick={() => { if (!downloadingId) setQualityEpisode(ep); }}
+                  disabled={Boolean(downloadingId)}
+                  aria-busy={downloadingId === ep.id}
+                  style={{
+                    padding: 8,
+                    color: downloadingId && downloadingId !== ep.id ? 'var(--text-muted)' : 'var(--primary)',
+                    flexShrink: 0,
+                    opacity: downloadingId && downloadingId !== ep.id ? 0.45 : 1,
+                  }}
+                >
+                  {downloadingId === ep.id
+                    ? <div className="spin" style={{ width: 26, height: 26, border: '2px solid rgba(0,217,255,0.3)', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
+                    : (
+                      <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round"/>
+                        <polyline points="7 10 12 15 17 10" strokeLinecap="round" strokeLinejoin="round"/>
+                        <line x1="12" y1="15" x2="12" y2="3" strokeLinecap="round"/>
+                      </svg>
+                    )
+                  }
                 </button>
               )}
             </div>
@@ -320,6 +346,33 @@ export default function DetailsPage() {
 
       {/* Toast */}
       {toast && <div className="toast">{toast}</div>}
+      {downloadingId && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            left: 16,
+            right: 16,
+            bottom: 'calc(var(--bottom-nav-height) + 16px)',
+            zIndex: 10002,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: '12px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+          }}
+        >
+          <div className="spin" style={{ width: 22, height: 22, border: '2px solid rgba(0,217,255,0.3)', borderTopColor: 'var(--primary)', borderRadius: '50%', flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>Preparing download</div>
+            <div className="line-clamp-1" style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{downloadStatus || 'Please wait...'}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

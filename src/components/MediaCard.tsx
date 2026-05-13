@@ -7,12 +7,13 @@ import { loadMonetagOnclickAd } from '@/lib/monetagAds';
 interface Props {
   media: Media;
   onPress: () => void;
+  showOnclickAd?: boolean;
 }
 
-export default function MediaCard({ media, onPress }: Props) {
+export default function MediaCard({ media, onPress, showOnclickAd = false }: Props) {
   return (
     <div
-      onPointerDown={loadMonetagOnclickAd}
+      onPointerDown={showOnclickAd ? loadMonetagOnclickAd : undefined}
       onClick={onPress}
       style={{
         width: '100%', cursor: 'pointer',

@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react';
 import JSZip from 'jszip';
-import { loadMonetagOnclickAd } from '@/lib/monetagAds';
 
 interface DownloadRecord {
   id: string;
@@ -159,7 +158,6 @@ export default function DownloadsPage() {
               </div>
               {/* Play */}
               <button
-                onPointerDown={loadMonetagOnclickAd}
                 onClick={() => handlePlay(rec)}
                 disabled={playingId === rec.id}
                 style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}
