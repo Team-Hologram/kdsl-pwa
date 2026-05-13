@@ -3,7 +3,6 @@
 // Lists downloaded ZIPs from IndexedDB, supports offline playback
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import JSZip from 'jszip';
 import { loadMonetagOnclickAd } from '@/lib/monetagAds';
 
@@ -66,7 +65,6 @@ async function deleteRecord(id: string): Promise<void> {
 }
 
 export default function DownloadsPage() {
-  const router = useRouter();
   const [records, setRecords] = useState<DownloadRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -102,7 +100,7 @@ export default function DownloadsPage() {
       // Store in sessionStorage so the player page can read it
       const key = `offline_${rec.id}`;
       sessionStorage.setItem(key, JSON.stringify({ videoUrl, subtitles: subs, title: rec.title }));
-      router.push(`/player?offlineKey=${encodeURIComponent(key)}`);
+      window.location.assign(`/player?offlineKey=${encodeURIComponent(key)}`);
     } catch (e) {
       console.error('[Downloads] play error', e);
       alert('Could not open the downloaded file.');

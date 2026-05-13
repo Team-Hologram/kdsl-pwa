@@ -109,7 +109,7 @@ export default function DetailsPage() {
     const url = new URL('/player', window.location.origin);
     url.searchParams.set('mediaId', id);
     if (!isMovie) url.searchParams.set('episodeId', ep.id);
-    router.push(url.pathname + url.search);
+    window.location.assign(url.pathname + url.search);
   };
 
   const handleDownload = async (ep: Episode, quality: VideoQuality) => {
