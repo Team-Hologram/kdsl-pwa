@@ -3,13 +3,11 @@
 
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Script from 'next/script';
 import { useMediaContext } from '@/context/MediaContext';
 import { useNotifications } from '@/context/NotificationsContext';
 import { Media } from '@/lib/types';
 import HeroCarousel from '@/components/HeroCarousel';
 import MediaCard from '@/components/MediaCard';
-import MonetagSafeAreaGuard from '@/components/MonetagSafeAreaGuard';
 
 function CategoryRow({ title, data }: { title: string; data: Media[] }) {
   const router = useRouter();
@@ -97,14 +95,6 @@ export default function HomePage() {
 
   return (
     <div className="page-content" style={{ paddingTop: 0 }}>
-      <MonetagSafeAreaGuard />
-      <Script
-        id="monetag-in-page-push"
-        src="https://nap5k.com/tag.min.js"
-        data-zone="11000647"
-        strategy="afterInteractive"
-      />
-
       {/* Notification bell — floating */}
       <button
         onClick={() => router.push('/notifications')}

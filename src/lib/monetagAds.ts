@@ -2,6 +2,7 @@ const MONETAG_ONCLICK_SCRIPT_ID = 'monetag-popunder-script';
 const MONETAG_ONCLICK_SRC = 'https://al5sm.com/tag.min.js';
 const MONETAG_IN_PAGE_PUSH_SCRIPT_ID = 'monetag-in-page-push';
 const MONETAG_IN_PAGE_PUSH_SRC = 'https://nap5k.com/tag.min.js';
+let onclickCleanupTimer: number | null = null;
 
 export function loadMonetagOnclickAd() {
   if (typeof document === 'undefined') return;
@@ -16,10 +17,20 @@ export function loadMonetagOnclickAd() {
   script.src = MONETAG_ONCLICK_SRC;
   script.async = true;
   scriptHost.appendChild(script);
+
+  if (onclickCleanupTimer) window.clearTimeout(onclickCleanupTimer);
+  onclickCleanupTimer = window.setTimeout(() => {
+    removeMonetagOnclickAd();
+    onclickCleanupTimer = null;
+  }, 1200);
 }
 
 export function removeMonetagOnclickAd() {
   if (typeof document === 'undefined') return;
+  if (onclickCleanupTimer) {
+    window.clearTimeout(onclickCleanupTimer);
+    onclickCleanupTimer = null;
+  }
 
   document.getElementById(MONETAG_ONCLICK_SCRIPT_ID)?.remove();
   document
