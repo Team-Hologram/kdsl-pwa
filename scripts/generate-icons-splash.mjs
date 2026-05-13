@@ -9,8 +9,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const ICON_SRC = path.join(ROOT, 'public/icons/icon-source.png');
-const SPLASH_SRC = path.join(ROOT, '..', 'kdrama-sl', 'assets', 'splash.png');
+const SPLASH_SRC = path.join(ROOT, 'public/splash/kdsl.png');
+const ICON_SRC = SPLASH_SRC;
 
 // ── Icon sizes ─────────────────────────────────────────────────────────────
 const iconSizes = [96, 180, 192, 512];
@@ -56,10 +56,12 @@ async function generateSplash() {
       create: { width: w, height: h, channels: 4, background: BG_COLOR },
     });
 
-    // Resize logo to ~40% of smaller dimension
-    const logoSize = Math.round(Math.min(w, h) * 0.38);
-    const logoBuffer = await sharp(ICON_SRC)
-      .resize(logoSize, logoSize)
+    // Center KDSL artwork. Trim white/transparent margins so the logo feels
+    // balanced across small phones and large Pro/iPad launch screens.
+    const logoSize = Math.round(Math.min(w, h) * 0.62);
+    const logoBuffer = await sharp(SPLASH_SRC)
+      .trim({ background: '#ffffff', threshold: 12 })
+      .resize(logoSize, logoSize, { fit: 'contain' })
       .png()
       .toBuffer();
 

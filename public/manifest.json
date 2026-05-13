@@ -1,9 +1,10 @@
 {
   "name": "KDrama SL",
   "short_name": "KDrama SL",
-  "id": "/",
+  "id": "https://live.kdramasl.site/",
   "description": "Korean Dramas & Movies with Sinhala Subtitles",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#131829",

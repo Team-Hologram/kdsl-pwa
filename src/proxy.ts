@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const MONETAG_VERIFICATION = '22864a604781ea94182620567edbe0f1';
+const APP_URL = 'https://live.kdramasl.site';
 
 // iPhone UA detection — allow only iPhone Safari
 // iPads on iOS 13+ report as "Macintosh" so they are blocked automatically
@@ -33,27 +34,43 @@ const BLOCKED_HTML = `<!DOCTYPE html>
       text-align: center;
     }
     .logo {
-      width: 96px;
-      height: 96px;
-      border-radius: 22px;
-      background: linear-gradient(135deg, #00D9FF 0%, #7B2FFF 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 48px;
-      margin-bottom: 32px;
+      width: 116px;
+      height: 116px;
+      object-fit: contain;
+      margin-bottom: 28px;
     }
     h1 { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
     p { font-size: 16px; color: rgba(255,255,255,0.65); line-height: 1.6; max-width: 360px; margin-bottom: 8px; }
-    .url {
+    .link-box {
       margin-top: 28px;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.15);
       border-radius: 12px;
-      padding: 14px 20px;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: min(100%, 380px);
+    }
+    .url {
+      min-width: 0;
+      flex: 1;
       font-size: 15px;
       color: #00D9FF;
       letter-spacing: 0.3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: left;
+    }
+    .copy {
+      border: 0;
+      border-radius: 10px;
+      background: #00D9FF;
+      color: #0A0E27;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 10px 13px;
     }
     .arrow {
       font-size: 40px;
@@ -94,11 +111,14 @@ const BLOCKED_HTML = `<!DOCTYPE html>
   </style>
 </head>
 <body>
-  <div class="logo">🎬</div>
+  <img class="logo" src="/splash/kdsl.png" alt="KDrama SL" />
   <h1>KDrama SL</h1>
   <p>This app is exclusively available for <strong>iPhone users via Safari</strong>.</p>
   <p>Open the link below on your iPhone in Safari to install it.</p>
-  <div class="url">kdramasl.site</div>
+  <div class="link-box">
+    <div class="url">${APP_URL}</div>
+    <button class="copy" type="button" onclick="copyAppLink(this)">Copy</button>
+  </div>
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
@@ -106,13 +126,29 @@ const BLOCKED_HTML = `<!DOCTYPE html>
     </div>
     <div class="step">
       <div class="step-num">2</div>
-      <div class="step-text">Go to <strong style="color:#00D9FF">kdramasl.site</strong></div>
+      <div class="step-text">Go to <strong style="color:#00D9FF">${APP_URL}</strong></div>
     </div>
     <div class="step">
       <div class="step-num">3</div>
       <div class="step-text">Tap the Share button → "Add to Home Screen"</div>
     </div>
   </div>
+  <script>
+    function copyAppLink(button) {
+      var url = '${APP_URL}';
+      function done() {
+        button.textContent = 'Copied';
+        window.setTimeout(function() { button.textContent = 'Copy'; }, 1800);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(function() {
+          window.prompt('Copy this link', url);
+        });
+      } else {
+        window.prompt('Copy this link', url);
+      }
+    }
+  </script>
 </body>
 </html>`;
 
