@@ -836,7 +836,7 @@ body.video-player-active {
 
 /* landscape player has top safe space */
 .kdrama-player.is-landscape {
-  padding-left: max(14px, env(safe-area-inset-top)) !important;
+  padding-left: max(18px, env(safe-area-inset-top)) !important;
   overflow: hidden !important;
 }
 
@@ -854,7 +854,7 @@ body.video-player-active {
 
 /* CC + Aa: top-right, same row as back */
 .kdrama-player.is-landscape .player-controls-cluster {
-  right: max(14px, env(safe-area-inset-top)) !important;
+  right: max(25px, env(safe-area-inset-top)) !important;
   top: 16px !important;
   left: auto !important;
   bottom: auto !important;
@@ -880,10 +880,10 @@ body.video-player-active {
 .kdrama-player.is-landscape .player-btn-fs {
   top: auto !important;
   left: auto !important;
-  right: 16px !important;
+  right: 25px !important;
 
   /* meka adjust karanna puluwan */
-  bottom: 50px !important;
+  bottom: 30px !important;
 
   width: 42px !important;
   height: 42px !important;
@@ -893,7 +893,7 @@ body.video-player-active {
 
 /* Vidstack default bottom controls keep lower, but not clipped */
 .kdrama-player.is-landscape .vds-controls {
-  padding-left: max(12px, env(safe-area-inset-bottom)) !important;
+  padding-left: max(18px, env(safe-area-inset-bottom)) !important;
 }
 
 .kdrama-player.is-landscape .vds-controls-group:last-child {
