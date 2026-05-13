@@ -26,13 +26,22 @@ async function generateIcons() {
 // ── iOS Splash Screens ─────────────────────────────────────────────────────
 // Portrait dimensions for each iPhone
 const splashSizes = [
-  { w: 1290, h: 2796, name: 'splash-1290x2796.png' }, // iPhone 14 Pro Max
-  { w: 1179, h: 2556, name: 'splash-1179x2556.png' }, // iPhone 14 Pro
-  { w: 1170, h: 2532, name: 'splash-1170x2532.png' }, // iPhone 12/13
-  { w: 1125, h: 2436, name: 'splash-1125x2436.png' }, // iPhone X/11 Pro
-  { w: 828,  h: 1792, name: 'splash-828x1792.png'  }, // iPhone 11/XR
-  { w: 750,  h: 1334, name: 'splash-750x1334.png'  }, // iPhone 8/SE2
-  { w: 640,  h: 1136, name: 'splash-640x1136.png'  }, // iPhone SE 1st gen
+  { w: 1320, h: 2868, name: 'splash-1320x2868.png' }, // iPhone 16 Pro Max
+  { w: 1290, h: 2796, name: 'splash-1290x2796.png' }, // iPhone 14/15 Pro Max
+  { w: 1284, h: 2778, name: 'splash-1284x2778.png' }, // iPhone 12/13 Pro Max, 14/15 Plus
+  { w: 1206, h: 2622, name: 'splash-1206x2622.png' }, // iPhone 16 Pro
+  { w: 1179, h: 2556, name: 'splash-1179x2556.png' }, // iPhone 14/15 Pro
+  { w: 1170, h: 2532, name: 'splash-1170x2532.png' }, // iPhone 12/13/14
+  { w: 1125, h: 2436, name: 'splash-1125x2436.png' }, // iPhone X/XS/11 Pro
+  { w: 1242, h: 2688, name: 'splash-1242x2688.png' }, // iPhone XS Max/11 Pro Max
+  { w: 828,  h: 1792, name: 'splash-828x1792.png'  }, // iPhone XR/11
+  { w: 1242, h: 2208, name: 'splash-1242x2208.png' }, // iPhone 6/7/8 Plus
+  { w: 750,  h: 1334, name: 'splash-750x1334.png'  }, // iPhone 6/7/8/SE2/SE3
+  { w: 640,  h: 1136, name: 'splash-640x1136.png'  }, // iPhone SE 1st gen/5
+  { w: 2048, h: 2732, name: 'splash-2048x2732.png' }, // iPad Pro 12.9
+  { w: 1668, h: 2388, name: 'splash-1668x2388.png' }, // iPad Pro 11
+  { w: 1668, h: 2224, name: 'splash-1668x2224.png' }, // iPad Pro 10.5/Air
+  { w: 1536, h: 2048, name: 'splash-1536x2048.png' }, // iPad Mini/9.7
 ];
 
 const BG_COLOR = { r: 10, g: 14, b: 39, alpha: 1 }; // #0A0E27
