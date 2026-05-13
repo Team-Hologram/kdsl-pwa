@@ -9,8 +9,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
+const ICON_SRC = path.join(ROOT, 'public/icons/icon-source.png');
 const SPLASH_SRC = path.join(ROOT, 'public/splash/kdsl.png');
-const ICON_SRC = SPLASH_SRC;
 
 // ── Icon sizes ─────────────────────────────────────────────────────────────
 const iconSizes = [96, 180, 192, 512];
