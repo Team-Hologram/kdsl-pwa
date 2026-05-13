@@ -119,15 +119,23 @@ export default function DetailsPage() {
 
     try {
       const response = await fetch(dlUrl);
+
       if (!response.ok) {
-        const data = await response.json().catch(() => null) as { error?: string } | null;
-        showToast(data?.error ?? 'Download failed');
+        // Clone to safely read JSON without consuming the body stream
+        let errorMsg = `Download failed (${response.status})`;
+        try {
+          const data = await response.clone().json() as { error?: string } | null;
+          if (data?.error) errorMsg = data.error;
+        } catch {
+          // JSON parse failed — keep the status-code message
+        }
+        showToast(errorMsg);
         return;
       }
 
       const blob = await response.blob();
       if (!blob.type.includes('zip') && blob.size < 1024) {
-        showToast('Download failed');
+        showToast('Download failed: invalid file received');
         return;
       }
 
@@ -142,7 +150,7 @@ export default function DetailsPage() {
       showToast(`Downloading ${name} (${quality.quality})...`);
     } catch (error) {
       console.error('[Details] download error', error);
-      showToast('Download failed');
+      showToast('Download failed: network error');
     }
   };
 
