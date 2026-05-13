@@ -23,6 +23,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+
+    navigator.serviceWorker
+      .register('/firebase-messaging-sw.js')
+      .catch((err) => console.warn('[PWA] Service worker registration failed:', err));
+  }, []);
+
   const isPlayer = PLAYER_PATHS.some((p) => pathname.startsWith(p));
 
   return (

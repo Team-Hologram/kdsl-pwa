@@ -8,7 +8,6 @@ import { useLocalUser } from '@/hooks/useLocalUser';
 import { Episode, VideoQuality } from '@/lib/types';
 import { fetchEpisodes } from '@/lib/mediaService';
 import { loadMonetagOnclickAd } from '@/lib/monetagAds';
-import { buildDownloadUrl } from '@/lib/proxyUrl';
 import { proxyVideoUrl, proxySubtitleUrl } from '@/lib/proxyUrl';
 
 function DetailsSkeletonContent() {
@@ -81,14 +80,18 @@ export default function DetailsPage() {
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [qualityEpisode, setQualityEpisode] = useState<Episode | null>(null);
   const [toast, setToast] = useState('');
+  const episodeCacheVersion = media?.totalEpisodes ?? null;
+  const mediaType = media?.type;
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
 
   useEffect(() => {
-    if (!media || media.type !== 'drama') return;
+    if (mediaType !== 'drama') return;
     setEpisodesLoading(true);
-    fetchEpisodes(id).then((eps) => { setEpisodes(eps); setEpisodesLoading(false); });
-  }, [id, media]);
+    fetchEpisodes(id, { cacheVersion: episodeCacheVersion })
+      .then((eps) => { setEpisodes(eps); setEpisodesLoading(false); })
+      .catch(() => setEpisodesLoading(false));
+  }, [id, mediaType, episodeCacheVersion]);
 
   if (!media) return <DetailsSkeletonContent />;
 

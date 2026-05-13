@@ -1,6 +1,49 @@
 // public/firebase-messaging-sw.js
 // FCM Background Push Notification Service Worker
 
+const IMAGE_CACHE = 'kdramasl-image-cache-v1';
+const IMAGE_CACHE_MAX_ENTRIES = 250;
+
+function isCacheableImageRequest(request) {
+  if (request.method !== 'GET') return false;
+
+  const url = new URL(request.url);
+  return url.origin === self.location.origin && (
+    url.pathname === '/api/proxy/image' ||
+    request.destination === 'image'
+  );
+}
+
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length <= maxEntries) return;
+
+  await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
+}
+
+self.addEventListener('fetch', (event) => {
+  if (!isCacheableImageRequest(event.request)) return;
+
+  event.respondWith((async () => {
+    const cache = await caches.open(IMAGE_CACHE);
+    const cached = await cache.match(event.request);
+
+    const network = fetch(event.request)
+      .then((response) => {
+        const contentType = response.headers.get('content-type') ?? '';
+        if (response.ok && contentType.startsWith('image/')) {
+          cache.put(event.request, response.clone());
+          trimCache(IMAGE_CACHE, IMAGE_CACHE_MAX_ENTRIES);
+        }
+        return response;
+      })
+      .catch(() => cached);
+
+    return cached || network;
+  })());
+});
+
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
@@ -17,8 +60,6 @@ const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Background message received:', payload);
-
   const notificationTitle = payload.notification?.title ?? 'KDrama SL';
   const notificationOptions = {
     body: payload.notification?.body ?? '',

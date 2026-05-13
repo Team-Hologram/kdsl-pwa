@@ -1,6 +1,11 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
@@ -23,10 +28,17 @@ const app = (() => {
 
 export const db = (() => {
   try {
+    if (typeof window !== 'undefined') {
+      return initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      });
+    }
     return getFirestore(app);
   } catch (e) {
-    console.error('[Firebase] getFirestore failed:', e);
-    throw e;
+    console.warn('[Firebase] persistent cache unavailable, using default Firestore:', e);
+    return getFirestore(app);
   }
 })();
 

@@ -33,28 +33,45 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-DNS-Prefetch-Control", value: "off" },
+          { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Referrer-Policy", value: "no-referrer" },
+          {
+            key: "Permissions-Policy",
+            value: "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains; preload",
+          },
         ],
       },
       {
-        // Only lock down the proxy routes — prevents leaking real B2/R2 URLs
-        source: "/api/proxy/:path*",
+        // Lock down streaming proxy routes — prevents leaking real B2/R2 URLs.
+        // Image proxy has its own cacheable headers below.
+        source: "/api/proxy/:path(video|subtitle)",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           { key: "Cache-Control", value: "private, no-store" },
         ],
       },
       {
-        source: "/api/download",
+        source: "/api/proxy/image",
         headers: [
           { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
-          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+        ],
+      },
+      {
+        source: "/firebase-messaging-sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
         ],
       },
     ];
   },
-  // Silence the "critical dependency" warning from archiver on the server side
-  serverExternalPackages: ["archiver"],
 };
 
 export default nextConfig;

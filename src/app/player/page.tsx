@@ -22,6 +22,8 @@ function PlayerContent() {
   const media = getById(mediaId);
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [loading, setLoading] = useState(true);
+  const episodeCacheVersion = media?.totalEpisodes ?? null;
+  const mediaType = media?.type;
 
   // Offline blob URLs (set via downloads page)
   const [offlineVideoUrl, setOfflineVideoUrl] = useState('');
@@ -60,22 +62,22 @@ function PlayerContent() {
       return;
     }
 
-    if (!media) return;
+    if (!mediaType) return;
 
-    if (media.type === 'movie') {
+    if (mediaType === 'movie') {
       setLoading(false);
       return;
     }
 
     // Drama — load episodes
     const loadEpisodes = async () => {
-      const eps = await fetchEpisodes(mediaId);
+      const eps = await fetchEpisodes(mediaId, { cacheVersion: episodeCacheVersion });
       const ep = eps.find((e) => e.id === episodeId) ?? eps[0];
       setEpisode(ep ?? null);
       setLoading(false);
     };
     loadEpisodes();
-  }, [media, mediaId, episodeId, offlineKey]);
+  }, [mediaType, mediaId, episodeId, offlineKey, episodeCacheVersion]);
 
   if (loading || (!media && !offlineKey)) {
     return (

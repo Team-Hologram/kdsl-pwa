@@ -1,22 +1,37 @@
 // src/lib/proxyUrl.ts
 // Build client-side URLs that go through our API proxy
-// Real B2/R2 origin URLs are NEVER sent to the browser
+
+const PUBLIC_B2_CDN_URL = (process.env.NEXT_PUBLIC_B2_CDN_URL ?? '').replace(/\/+$/, '');
+
+function cleanFileId(fileId: string) {
+  return fileId.replace(/^\/+/, '');
+}
+
+function encodePath(path: string) {
+  return cleanFileId(path).split('/').map(encodeURIComponent).join('/');
+}
 
 /**
- * Proxy a B2 video file path through the server-side proxy
+ * Build a video URL.
+ * If NEXT_PUBLIC_B2_CDN_URL is set, the browser loads directly from the CDN
+ * and bypasses Vercel functions/bandwidth entirely.
  * @param fileId  The path stored in Firestore (e.g. "videos/episode1_720p.mp4")
  */
 export function proxyVideoUrl(fileId: string | null | undefined): string {
   if (!fileId || fileId.trim() === '') return '';
+  if (PUBLIC_B2_CDN_URL) return `${PUBLIC_B2_CDN_URL}/${encodePath(fileId)}`;
   return `/api/proxy/video?id=${encodeURIComponent(fileId)}`;
 }
 
 /**
- * Proxy a B2 subtitle file path through the server-side proxy
+ * Build a subtitle URL.
+ * If NEXT_PUBLIC_B2_CDN_URL is set, the browser loads directly from the CDN
+ * and bypasses Vercel functions/bandwidth entirely.
  * @param fileId  The path stored in Firestore
  */
 export function proxySubtitleUrl(fileId: string | null | undefined): string {
   if (!fileId || fileId.trim() === '') return '';
+  if (PUBLIC_B2_CDN_URL) return `${PUBLIC_B2_CDN_URL}/${encodePath(fileId)}`;
   return `/api/proxy/subtitle?id=${encodeURIComponent(fileId)}`;
 }
 
@@ -36,22 +51,4 @@ export function proxyThumbnailUrl(filename: string | null | undefined): string {
 export function proxyBannerUrl(filename: string | null | undefined): string {
   if (!filename || filename.trim() === '') return '';
   return `/api/proxy/image?type=banner&id=${encodeURIComponent(filename)}`;
-}
-
-/**
- * Build the ZIP download URL for an episode
- * @param videoFileId  B2 file path for the video
- * @param subtitleIds  Array of B2 file paths for subtitles
- * @param filename     Output filename (without .zip)
- */
-export function buildDownloadUrl(
-  videoFileId: string,
-  subtitleIds: string[],
-  filename: string,
-): string {
-  const params = new URLSearchParams();
-  params.set('videoId', videoFileId);
-  params.set('filename', filename);
-  subtitleIds.forEach((subtitleId) => params.append('subtitleId', subtitleId));
-  return `/api/download?${params.toString()}`;
 }

@@ -160,7 +160,6 @@ export function useFCM() {
         updatedAt: serverTimestamp(),
         lastActiveAt: serverTimestamp(),
       }, { merge: true });
-      console.log('[FCM] Device registered in Firestore');
     } catch (e) {
       console.warn('[FCM] Firestore write failed:', e);
     }

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { MediaProvider } from '@/context/MediaContext';
 import { NotificationsProvider } from '@/context/NotificationsContext';
+import { AppSettingsProvider } from '@/context/AppSettingsContext';
 import AppShell from '@/components/AppShell';
 import MonetagRouteGuard from '@/components/MonetagRouteGuard';
 
@@ -99,12 +100,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <p style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>Please rotate to portrait</p>
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>This app works in portrait mode only</p>
         </div>
-        <MediaProvider>
-          <NotificationsProvider>
-            <MonetagRouteGuard />
-            <AppShell>{children}</AppShell>
-          </NotificationsProvider>
-        </MediaProvider>
+        <AppSettingsProvider>
+          <MediaProvider>
+            <NotificationsProvider>
+              <MonetagRouteGuard />
+              <AppShell>{children}</AppShell>
+            </NotificationsProvider>
+          </MediaProvider>
+        </AppSettingsProvider>
       </body>
     </html>
   );

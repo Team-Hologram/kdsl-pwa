@@ -83,12 +83,6 @@ export default function HomePage() {
         >
           Retry
         </button>
-        <a
-          href="/debug"
-          style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}
-        >
-          Debug Info →
-        </a>
       </div>
     );
   }

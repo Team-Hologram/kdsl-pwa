@@ -11,6 +11,14 @@ import { Media, Episode, VideoQuality, Subtitle } from './types';
 import { proxyThumbnailUrl, proxyBannerUrl, proxyVideoUrl, proxySubtitleUrl } from './proxyUrl';
 
 const MEDIA_COL = 'media';
+const EPISODE_CACHE_PREFIX = 'kdramasl_pwa_episodes_v1';
+const EPISODE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const episodeMemoryCache = new Map<string, { episodes: Episode[]; savedAt: number; version: number | string | null }>();
+
+type EpisodeFetchOptions = {
+  cacheVersion?: number | string | null;
+  maxAgeMs?: number;
+};
 
 // ── URL builders (same logic as RN b2.ts/r2.ts but via proxy) ─────────────
 
@@ -107,27 +115,49 @@ export function mapEpisodeDoc(id: string, data: any): Episode {
 
 // ── Firestore helpers ──────────────────────────────────────────────────────
 
-export function subscribeToSettingsApp(
-  callback: (data: Record<string, any>) => void,
-  onError?: (e: Error) => void,
-  onNotFound?: () => void,
-): Unsubscribe {
-  return onSnapshot(
-    doc(db, 'settings', 'app'),
-    (snap) => {
-      if (snap.exists()) {
-        callback(snap.data());
-      } else {
-        // settings/app doc doesn't exist — signal caller to do a full fetch
-        console.warn('[mediaService] settings/app not found — calling onNotFound');
-        onNotFound?.();
-      }
-    },
-    (e) => {
-      console.error('[mediaService] settings/app onSnapshot error:', e);
-      onError?.(e);
+function episodeCacheKey(mediaId: string) {
+  return `${EPISODE_CACHE_PREFIX}_${mediaId}`;
+}
+
+function readEpisodeCache(mediaId: string, version: EpisodeFetchOptions['cacheVersion'], maxAgeMs: number): Episode[] | null {
+  if (typeof window === 'undefined') return null;
+
+  const memory = episodeMemoryCache.get(mediaId);
+  const now = Date.now();
+  if (memory && memory.version === version && now - memory.savedAt <= maxAgeMs) {
+    return memory.episodes;
+  }
+
+  try {
+    const raw = localStorage.getItem(episodeCacheKey(mediaId));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (
+      Array.isArray(parsed.episodes) &&
+      parsed.version === version &&
+      now - (parsed.savedAt ?? 0) <= maxAgeMs
+    ) {
+      episodeMemoryCache.set(mediaId, {
+        episodes: parsed.episodes,
+        savedAt: parsed.savedAt,
+        version: parsed.version,
+      });
+      return parsed.episodes;
     }
-  );
+  } catch {}
+
+  return null;
+}
+
+function writeEpisodeCache(mediaId: string, version: EpisodeFetchOptions['cacheVersion'], episodes: Episode[]) {
+  if (typeof window === 'undefined') return;
+
+  const entry = { episodes, savedAt: Date.now(), version: version ?? null };
+  episodeMemoryCache.set(mediaId, entry);
+  try {
+    localStorage.setItem(episodeCacheKey(mediaId), JSON.stringify(entry));
+  } catch {}
 }
 
 export async function fetchAllMedia(): Promise<Media[]> {
@@ -141,10 +171,16 @@ export async function fetchMediaById(id: string): Promise<Media | null> {
   return mapMediaDoc(snap.id, snap.data());
 }
 
-export async function fetchEpisodes(mediaId: string): Promise<Episode[]> {
+export async function fetchEpisodes(mediaId: string, options: EpisodeFetchOptions = {}): Promise<Episode[]> {
+  const maxAgeMs = options.maxAgeMs ?? EPISODE_CACHE_MAX_AGE_MS;
+  const cached = readEpisodeCache(mediaId, options.cacheVersion ?? null, maxAgeMs);
+  if (cached) return cached;
+
   const ref = collection(doc(db, MEDIA_COL, mediaId), 'episodes');
   const snap = await getDocs(query(ref, orderBy('episodeNumber')));
-  return snap.docs.map((d) => mapEpisodeDoc(d.id, d.data()));
+  const episodes = snap.docs.map((d) => mapEpisodeDoc(d.id, d.data()));
+  writeEpisodeCache(mediaId, options.cacheVersion ?? null, episodes);
+  return episodes;
 }
 
 export function subscribeToEpisodes(
