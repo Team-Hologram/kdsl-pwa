@@ -415,7 +415,7 @@ media-player .vds-time-slider {
 /* Subtitle */
 .player-sub {
   position: absolute;
-  bottom: calc(18% + var(--player-safe-bottom));
+  bottom: calc(12% + var(--player-safe-bottom));
   left: 4%;
   right: 4%;
   text-align: center;
@@ -436,7 +436,7 @@ media-player .vds-time-slider {
   font-weight: 600;
   padding: 3px 10px;
   border-radius: 4px;
-  line-height: 1.55;
+  line-height: 1.00;
   margin-bottom: 2px;
   text-shadow:
     0 1px 2px #000,
@@ -854,7 +854,7 @@ body.video-player-active {
 
 /* CC + Aa: top-right, same row as back */
 .kdrama-player.is-landscape .player-controls-cluster {
-  right: max(20px, env(safe-area-inset-top)) !important;
+  right: max(10px, env(safe-area-inset-top)) !important;
   top: 16px !important;
   left: auto !important;
   bottom: auto !important;
