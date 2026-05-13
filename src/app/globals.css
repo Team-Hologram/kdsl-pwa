@@ -714,3 +714,120 @@ media-player .vds-time-slider {
   height: 34px !important;
   font-size: 15px !important;
 }
+
+/* ===== FINAL iPhone Player Position Override ===== */
+
+:root {
+  --kd-safe-top: max(10px, env(safe-area-inset-top));
+  --kd-safe-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+/* Player body safe spacing */
+html.video-player-active,
+body.video-player-active {
+  background: #000 !important;
+  overflow: hidden !important;
+}
+
+/* ---------- PORTRAIT ---------- */
+
+/* top buttons closer to player top edge */
+.kdrama-player.is-portrait .player-btn-back {
+  top: 10px !important;
+  left: 12px !important;
+}
+
+.kdrama-player.is-portrait .player-controls-cluster {
+  top: 10px !important;
+  right: 14px !important;
+}
+
+/* bottom controls closer to player bottom edge */
+.kdrama-player.is-portrait .vds-controls {
+  padding-bottom: 6px !important;
+}
+
+.kdrama-player.is-portrait .vds-controls-group:last-child {
+  margin-bottom: 2px !important;
+}
+
+.kdrama-player.is-portrait .vds-time-slider {
+  margin-bottom: 2px !important;
+}
+
+/* fullscreen icon near bottom-right edge */
+.kdrama-player.is-portrait .player-btn-fs {
+  right: 14px !important;
+  bottom: 48px !important;
+  top: auto !important;
+  left: auto !important;
+}
+
+/* subtitles a bit above timeline */
+.kdrama-player.is-portrait .player-sub {
+  bottom: 19% !important;
+}
+
+
+/* ---------- LANDSCAPE FAKE FULLSCREEN ---------- */
+
+/* top and bottom safe area-like breathing space */
+.kdrama-player.is-landscape {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+/* back + top controls */
+.kdrama-player.is-landscape .player-btn-back {
+  top: 14px !important;
+  left: 14px !important;
+}
+
+.kdrama-player.is-landscape .player-controls-cluster {
+  top: auto !important;
+  bottom: 54px !important;
+  right: 14px !important;
+  gap: 8px !important;
+  flex-direction: column !important;
+}
+
+/* fullscreen-out button move DOWN like your mark */
+.kdrama-player.is-landscape .player-btn-fs {
+  top: auto !important;
+  bottom: 170px !important;
+  right: 14px !important;
+  left: auto !important;
+}
+
+/* landscape title / time / timeline move lower */
+.kdrama-player.is-landscape .vds-controls {
+  padding-bottom: 0px !important;
+}
+
+.kdrama-player.is-landscape .vds-controls-group:last-child {
+  margin-bottom: -6px !important;
+}
+
+.kdrama-player.is-landscape .vds-time-slider {
+  margin-bottom: 0px !important;
+}
+
+/* make landscape controls not clipped */
+.kdrama-player.is-landscape .player-btn-fs,
+.kdrama-player.is-landscape .player-controls-cluster,
+.kdrama-player.is-landscape .player-btn-back {
+  z-index: 99999 !important;
+}
+
+/* buttons size */
+.kdrama-player .player-btn-back,
+.kdrama-player .player-btn-fs {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.kdrama-player.is-landscape .player-ctrl-btn-text {
+  width: 48px !important;
+  height: 42px !important;
+  font-size: 16px !important;
+}
