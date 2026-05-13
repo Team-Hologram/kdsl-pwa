@@ -12,7 +12,20 @@ function readSafeAreaTop(): number {
 
   const value = Number.parseFloat(getComputedStyle(probe).paddingTop || '0');
   probe.remove();
-  return Number.isFinite(value) ? value : 0;
+  const cssSafeTop = Number.isFinite(value) ? value : 0;
+  if (cssSafeTop > 0) return cssSafeTop;
+
+  // Some iPhone Safari/PWA contexts report env(safe-area-inset-top) as 0
+  // even though top-fixed third-party ads still overlap the status bar.
+  const isIphone = /iPhone/.test(navigator.userAgent);
+  if (!isIphone) return 0;
+
+  const shortSide = Math.min(window.screen.width, window.screen.height);
+  const longSide = Math.max(window.screen.width, window.screen.height);
+
+  if (shortSide <= 375 && longSide <= 667) return 24;
+  if (shortSide <= 414 && longSide <= 896) return 44;
+  return 54;
 }
 
 function shouldMoveElement(element: Element, safeTop: number): element is HTMLElement {
@@ -64,8 +77,32 @@ function applySafeAreaOffset() {
   }
 }
 
+function installSafeAreaStyle() {
+  const safeTop = readSafeAreaTop();
+  if (safeTop <= 0 || document.getElementById('monetag-safe-area-style')) return;
+
+  const top = safeTop + 8;
+  const style = document.createElement('style');
+  style.id = 'monetag-safe-area-style';
+  style.textContent = `
+    iframe[src*="nap5k"],
+    iframe[src*="monetag"],
+    iframe[src*="propeller"],
+    [id*="monetag" i],
+    [class*="monetag" i],
+    [id*="propeller" i],
+    [class*="propeller" i],
+    [data-zone="11000647"] {
+      top: ${top}px !important;
+      max-height: calc(100vh - ${top}px) !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 export default function MonetagSafeAreaGuard() {
   useEffect(() => {
+    installSafeAreaStyle();
     applySafeAreaOffset();
 
     const observer = new MutationObserver(() => {

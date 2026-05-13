@@ -939,24 +939,3 @@ body.video-player-active {
     padding: 2px 7px !important;
   }
 }
-
-/* Monetag / ad overlays safe-area fix */
-iframe[src*="monetag"],
-iframe[src*="propeller"],
-div[id*="monetag"],
-div[class*="monetag"],
-div[id*="ad"],
-div[class*="push"] {
-  margin-top: env(safe-area-inset-top) !important;
-}
-body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-top);
-  background: #000;
-  z-index: 2147483647;
-  pointer-events: none;
-}
