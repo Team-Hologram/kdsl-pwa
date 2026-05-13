@@ -3,6 +3,43 @@ const MONETAG_ONCLICK_SRC = 'https://al5sm.com/tag.min.js';
 const MONETAG_IN_PAGE_PUSH_SCRIPT_ID = 'monetag-in-page-push';
 const MONETAG_IN_PAGE_PUSH_SRC = 'https://nap5k.com/tag.min.js';
 let onclickCleanupTimer: number | null = null;
+let popupBlockTimer: number | null = null;
+let popupOpenOriginal: typeof window.open | null = null;
+const popupOpenBlocker = (() => null) as typeof window.open;
+
+function restoreWindowOpen() {
+  if (typeof window === 'undefined') return;
+  if (popupBlockTimer) {
+    window.clearTimeout(popupBlockTimer);
+    popupBlockTimer = null;
+  }
+  if (popupOpenOriginal && window.open === popupOpenBlocker) {
+    window.open = popupOpenOriginal;
+  }
+  popupOpenOriginal = null;
+}
+
+function blockWindowOpenFor(durationMs: number) {
+  if (typeof window === 'undefined') return;
+  if (!popupOpenOriginal) {
+    popupOpenOriginal = window.open;
+    window.open = popupOpenBlocker;
+  }
+  if (popupBlockTimer) window.clearTimeout(popupBlockTimer);
+  popupBlockTimer = window.setTimeout(restoreWindowOpen, durationMs);
+}
+
+function cleanupAfterCurrentInteraction() {
+  if (typeof window === 'undefined') return;
+
+  const cleanup = () => {
+    window.setTimeout(removeMonetagOnclickAd, 100);
+  };
+
+  window.addEventListener('pointerup', cleanup, { once: true, capture: true });
+  window.addEventListener('touchend', cleanup, { once: true, capture: true });
+  window.addEventListener('click', cleanup, { once: true, capture: true });
+}
 
 export function loadMonetagOnclickAd() {
   if (typeof document === 'undefined') return;
@@ -17,12 +54,13 @@ export function loadMonetagOnclickAd() {
   script.src = MONETAG_ONCLICK_SRC;
   script.async = true;
   scriptHost.appendChild(script);
+  cleanupAfterCurrentInteraction();
 
   if (onclickCleanupTimer) window.clearTimeout(onclickCleanupTimer);
   onclickCleanupTimer = window.setTimeout(() => {
     removeMonetagOnclickAd();
     onclickCleanupTimer = null;
-  }, 1200);
+  }, 900);
 }
 
 export function removeMonetagOnclickAd() {
@@ -50,6 +88,15 @@ export function removeMonetagInPagePushAd() {
 export function removeAllMonetagAdScripts() {
   removeMonetagOnclickAd();
   removeMonetagInPagePushAd();
+}
+
+export function suppressMonetagOnclickAds(durationMs = 1500) {
+  if (typeof window === 'undefined') return;
+  removeMonetagOnclickAd();
+  blockWindowOpenFor(durationMs);
+  window.setTimeout(removeMonetagOnclickAd, 0);
+  window.setTimeout(removeMonetagOnclickAd, 150);
+  window.setTimeout(removeMonetagOnclickAd, 450);
 }
 
 export function blockPopupAdsWhileMounted() {

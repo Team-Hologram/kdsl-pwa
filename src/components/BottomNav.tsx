@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useNotifications } from '@/context/NotificationsContext';
-import { removeAllMonetagAdScripts } from '@/lib/monetagAds';
+import { removeAllMonetagAdScripts, suppressMonetagOnclickAds } from '@/lib/monetagAds';
 
 const tabs = [
   {
@@ -55,6 +55,7 @@ const tabs = [
 export default function BottomNav() {
   const pathname = usePathname();
   const { unreadCount } = useNotifications();
+  const suppressNavAds = () => suppressMonetagOnclickAds();
 
   return (
     <nav className="bottom-nav">
@@ -65,6 +66,8 @@ export default function BottomNav() {
             key={tab.href}
             href={tab.href}
             className={`bottom-nav-item${active ? ' active' : ''}`}
+            onPointerDownCapture={suppressNavAds}
+            onClickCapture={suppressNavAds}
             onPointerDown={removeAllMonetagAdScripts}
             onClick={removeAllMonetagAdScripts}
           >

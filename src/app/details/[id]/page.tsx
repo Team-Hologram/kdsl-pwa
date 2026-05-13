@@ -5,10 +5,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useMediaContext } from '@/context/MediaContext';
 import { useLocalUser } from '@/hooks/useLocalUser';
-import { Episode, VideoQuality } from '@/lib/types';
+import { Episode } from '@/lib/types';
 import { fetchEpisodes } from '@/lib/mediaService';
 import { loadMonetagOnclickAd } from '@/lib/monetagAds';
-import { proxyVideoUrl, proxySubtitleUrl } from '@/lib/proxyUrl';
 
 function DetailsSkeletonContent() {
   return (
@@ -27,48 +26,6 @@ function DetailsSkeletonContent() {
   );
 }
 
-// Quality picker bottom sheet
-function QualityPicker({ qualities, onSelect, onClose }: { qualities: VideoQuality[]; onSelect: (q: VideoQuality) => void; onClose: () => void }) {
-  return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200 }} />
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
-        background: 'var(--bg-card)', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        padding: '12px 0 calc(var(--nav-height) + 8px)',
-        animation: 'slideUp 0.25s ease-out',
-      }}>
-        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 16px' }} />
-        <p style={{ padding: '0 20px 12px', fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>Select Quality</p>
-        {qualities.map((q) => (
-          <button key={q.quality} onClick={() => onSelect(q)} style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            width: '100%', padding: '14px 20px', textAlign: 'left',
-            color: 'var(--text)', fontSize: 16,
-            borderBottom: '1px solid var(--border)',
-          }}>
-            <span style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700, color: 'var(--primary)',
-            }}>{q.quality}</span>
-            Download {q.quality}
-          </button>
-        ))}
-        <button onClick={onClose} style={{ display: 'block', width: '100%', padding: '14px 20px', color: 'var(--text-secondary)', fontSize: 15 }}>Cancel</button>
-      </div>
-    </>
-  );
-}
-
-function downloadQualities(ep: Episode, fallbackQualities: VideoQuality[] = []): VideoQuality[] {
-  const qualities = ep.qualities.length > 0 ? ep.qualities : fallbackQualities;
-  if (qualities.length > 0) return qualities;
-  if (!ep.videoFileId) return [];
-  return [{ quality: 'offline', url: ep.videoUrl, fileId: ep.videoFileId }];
-}
-
-
 export default function DetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -78,10 +35,8 @@ export default function DetailsPage() {
   const media = getById(id);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [episodesLoading, setEpisodesLoading] = useState(false);
-  const [qualityEpisode, setQualityEpisode] = useState<Episode | null>(null);
   const [toast, setToast] = useState('');
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [downloadStatus, setDownloadStatus] = useState('');
+  const [pendingDownloadId, setPendingDownloadId] = useState<string | null>(null);
   const episodeCacheVersion = media?.totalEpisodes ?? null;
   const mediaType = media?.type;
 
@@ -117,60 +72,9 @@ export default function DetailsPage() {
     window.location.assign(url.pathname + url.search);
   };
 
-  const handleDownload = async (ep: Episode, quality: VideoQuality) => {
-    if (downloadingId) return;
-    if (!quality.fileId) { showToast('Download URL not available'); return; }
-    const name = isMovie ? media.title : `${media.title} - EP${ep.episodeNumber}`;
-    setQualityEpisode(null);
-    setDownloadingId(ep.id);
-    setDownloadStatus(`Downloading ${quality.quality}...`);
-    showToast(`Starting download: ${name} (${quality.quality})…`);
-    try {
-      // ── Use SAME proxy URL as streaming ──────────────────────────────────
-      // /api/proxy/video → 302 → CDN URL (Cloudflare CORS rule applies)
-      // Browser fetches CDN directly — no server-side Vercel→Cloudflare 403
-      const videoRes = await fetch(proxyVideoUrl(quality.fileId));
-      if (!videoRes.ok) { showToast(`Download failed (${videoRes.status})`); return; }
-      const videoBlob = await videoRes.blob();
-
-      // ── Build ZIP client-side with JSZip ─────────────────────────────────
-      const { default: JSZip } = await import('jszip');
-      const zip = new JSZip();
-      const ext = quality.fileId.split('.').pop()?.toLowerCase() ?? 'mp4';
-      zip.file(`video.${ext}`, videoBlob);
-
-      // Subtitles
-      setDownloadStatus('Adding subtitles...');
-      for (const sub of ep.subtitles) {
-        if (!sub.fileId) continue;
-        try {
-          const subRes = await fetch(proxySubtitleUrl(sub.fileId));
-          if (!subRes.ok) continue;
-          const langMatch = sub.fileId.match(/([a-z]{2,3})\.(vtt|srt|ass)$/i);
-          const lang = langMatch ? langMatch[1] : sub.language ?? 'sub';
-          const subExt = sub.fileId.split('.').pop() ?? 'vtt';
-          zip.file(`subtitles/${lang}.${subExt}`, await subRes.blob());
-        } catch { /* skip failed subtitle */ }
-      }
-
-      setDownloadStatus('Packaging ZIP...');
-      showToast(`Packaging ${name}…`);
-      const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-
-      // ── Trigger device file download ─────────────────────────────────────
-      const objUrl = URL.createObjectURL(zipBlob);
-      const a = document.createElement('a');
-      a.href = objUrl; a.download = `${name}.zip`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(objUrl), 30_000);
-      showToast(`✓ ${name} downloaded`);
-    } catch (err) {
-      console.error('[Details] download error', err);
-      showToast('Download failed: network error');
-    } finally {
-      setDownloadingId(null);
-      setDownloadStatus('');
-    }
+  const handlePendingDownload = (ep: Episode) => {
+    setPendingDownloadId(ep.id);
+    showToast('Download feature coming soon');
   };
 
   return (
@@ -306,19 +210,22 @@ export default function DetailsPage() {
               {/* Download button */}
               {(ep.qualities.length > 0 || ep.videoFileId) && (
                 <button
-                  onPointerDown={downloadingId ? undefined : loadMonetagOnclickAd}
-                  onClick={() => { if (!downloadingId) setQualityEpisode(ep); }}
-                  disabled={Boolean(downloadingId)}
-                  aria-busy={downloadingId === ep.id}
+                  onPointerDown={loadMonetagOnclickAd}
+                  onClick={() => handlePendingDownload(ep)}
+                  aria-pressed={pendingDownloadId === ep.id}
                   style={{
                     padding: 8,
-                    color: downloadingId && downloadingId !== ep.id ? 'var(--text-muted)' : 'var(--primary)',
+                    color: pendingDownloadId === ep.id ? '#FFD700' : 'var(--primary)',
                     flexShrink: 0,
-                    opacity: downloadingId && downloadingId !== ep.id ? 0.45 : 1,
                   }}
                 >
-                  {downloadingId === ep.id
-                    ? <div className="spin" style={{ width: 26, height: 26, border: '2px solid rgba(0,217,255,0.3)', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
+                  {pendingDownloadId === ep.id
+                    ? (
+                      <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )
                     : (
                       <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round"/>
@@ -335,18 +242,9 @@ export default function DetailsPage() {
         <div style={{ height: 16 }} />
       </div>
 
-      {/* Quality picker sheet */}
-      {qualityEpisode && (
-        <QualityPicker
-          qualities={downloadQualities(qualityEpisode, media.qualities ?? [])}
-          onSelect={(q) => handleDownload(qualityEpisode, q)}
-          onClose={() => setQualityEpisode(null)}
-        />
-      )}
-
       {/* Toast */}
       {toast && <div className="toast">{toast}</div>}
-      {downloadingId && (
+      {pendingDownloadId && (
         <div
           role="status"
           aria-live="polite"
@@ -366,10 +264,27 @@ export default function DetailsPage() {
             boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
           }}
         >
-          <div className="spin" style={{ width: 22, height: 22, border: '2px solid rgba(0,217,255,0.3)', borderTopColor: 'var(--primary)', borderRadius: '50%', flexShrink: 0 }} />
+          <div style={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            background: 'rgba(255,215,0,0.12)',
+            color: '#FFD700',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>Preparing download</div>
-            <div className="line-clamp-1" style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{downloadStatus || 'Please wait...'}</div>
+            <div style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>Downloads coming soon</div>
+            <div className="line-clamp-1" style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+              Offline saving is not available yet.
+            </div>
           </div>
         </div>
       )}
