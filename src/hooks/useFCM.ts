@@ -9,7 +9,6 @@ import { db } from '@/lib/firebase';
 const FCM_TOKENS_COL = 'fcmTokens';
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? '';
 const STORAGE_KEY = 'kdramasl_pwa_device_id';
-const PROMPT_SEEN_KEY = 'kdramasl_pwa_notification_prompt_seen';
 
 type FcmCapability = {
   canUseFcm: boolean;
@@ -122,20 +121,6 @@ async function getFcmCapability(): Promise<FcmCapability> {
   }
 }
 
-function wasPromptSeen() {
-  try {
-    return localStorage.getItem(PROMPT_SEEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markPromptSeen() {
-  try {
-    localStorage.setItem(PROMPT_SEEN_KEY, '1');
-  } catch {}
-}
-
 export function useFCM() {
   const registered = useRef(false);
   const capability = useRef<FcmCapability | null>(null);
@@ -220,7 +205,6 @@ export function useFCM() {
   const requestPermission = useCallback(async () => {
     const currentCapability = capability.current ?? await getFcmCapability();
     capability.current = currentCapability;
-    markPromptSeen();
 
     if (!currentCapability.canUseFcm || !('Notification' in window)) {
       await getAndSaveToken(currentCapability);
@@ -256,7 +240,7 @@ export function useFCM() {
         return;
       }
 
-      if (Notification.permission === 'denied' || wasPromptSeen()) {
+      if (Notification.permission === 'denied') {
         await saveDevice({
           fcmToken: null,
           fcmSupported: true,
@@ -284,10 +268,8 @@ export function useFCM() {
       };
     };
 
-    // Delay slightly to not block initial render
-    const t = setTimeout(register, 2000);
+    void register();
     return () => {
-      clearTimeout(t);
       removePermissionListeners?.();
     };
   }, [getAndSaveToken, requestPermission, saveDevice]);
