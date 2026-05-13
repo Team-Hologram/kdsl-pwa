@@ -60,6 +60,13 @@ function QualityPicker({ qualities, onSelect, onClose }: { qualities: VideoQuali
   );
 }
 
+function downloadQualities(ep: Episode, fallbackQualities: VideoQuality[] = []): VideoQuality[] {
+  const qualities = ep.qualities.length > 0 ? ep.qualities : fallbackQualities;
+  if (qualities.length > 0) return qualities;
+  if (!ep.videoFileId) return [];
+  return [{ quality: 'offline', url: ep.videoUrl, fileId: ep.videoFileId }];
+}
+
 export default function DetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -267,7 +274,7 @@ export default function DetailsPage() {
       {/* Quality picker sheet */}
       {qualityEpisode && (
         <QualityPicker
-          qualities={qualityEpisode.qualities.length > 0 ? qualityEpisode.qualities : (media.qualities ?? [])}
+          qualities={downloadQualities(qualityEpisode, media.qualities ?? [])}
           onSelect={(q) => handleDownload(qualityEpisode, q)}
           onClose={() => setQualityEpisode(null)}
         />

@@ -52,8 +52,6 @@ export function buildDownloadUrl(
   const params = new URLSearchParams();
   params.set('videoId', videoFileId);
   params.set('filename', filename);
-  if (subtitleIds.length > 0) {
-    params.set('subtitleIds', subtitleIds.join(','));
-  }
+  subtitleIds.forEach((subtitleId) => params.append('subtitleId', subtitleId));
   return `/api/download?${params.toString()}`;
 }
