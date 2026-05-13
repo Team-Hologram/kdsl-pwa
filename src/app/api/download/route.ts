@@ -18,17 +18,25 @@ function b2Urls(path: string) {
 
   const cleanPath = path.replace(/^\/+/, '');
   const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/');
-  return [B2_DIRECT_URL, B2_BASE_URL]
+  const bases = [B2_BASE_URL, B2_DIRECT_URL]
     .filter((base, index, bases): base is string => Boolean(base) && bases.indexOf(base) === index)
-    .map((base) => `${base}/${encodedPath}`);
+  return bases.flatMap((base) => {
+    const rawUrl = `${base}/${cleanPath}`;
+    const encodedUrl = `${base}/${encodedPath}`;
+    return rawUrl === encodedUrl ? [rawUrl] : [rawUrl, encodedUrl];
+  });
 }
 
 async function fetchB2(path: string) {
   let lastResponse: Response | null = null;
   for (const url of b2Urls(path)) {
-    const response = await fetch(url);
-    if (response.ok) return response;
-    lastResponse = response;
+    try {
+      const response = await fetch(url);
+      if (response.ok) return response;
+      lastResponse = response;
+    } catch {
+      // Try the next configured URL candidate.
+    }
   }
   return lastResponse;
 }
@@ -85,7 +93,10 @@ export async function GET(request: NextRequest) {
   // Fetch the video stream from B2
   const videoResponse = await fetchB2(videoId);
   if (!videoResponse?.ok) {
-    return NextResponse.json({ error: 'Video not found' }, { status: 404 });
+    return NextResponse.json(
+      { error: `Video not found${videoResponse ? ` (${videoResponse.status})` : ''}` },
+      { status: 404 },
+    );
   }
 
   // Create archiver ZIP stream
