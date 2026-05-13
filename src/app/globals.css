@@ -831,3 +831,91 @@ body.video-player-active {
   height: 42px !important;
   font-size: 16px !important;
 }
+
+/* ===== LANDSCAPE FINAL CLEAN LAYOUT ===== */
+
+/* landscape player has top safe space */
+.kdrama-player.is-landscape {
+  padding-top: max(14px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  overflow: hidden !important;
+}
+
+/* Back button: top-left, same row */
+.kdrama-player.is-landscape .player-btn-back {
+  top: max(14px, env(safe-area-inset-top)) !important;
+  left: 16px !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  width: 42px !important;
+  height: 42px !important;
+  z-index: 99999 !important;
+}
+
+/* CC + Aa: top-right, same row as back */
+.kdrama-player.is-landscape .player-controls-cluster {
+  top: max(14px, env(safe-area-inset-top)) !important;
+  right: 16px !important;
+  left: auto !important;
+  bottom: auto !important;
+
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  z-index: 99999 !important;
+}
+
+/* CC / Aa touch size */
+.kdrama-player.is-landscape .player-ctrl-btn-text {
+  min-width: 46px !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  font-size: 16px !important;
+  border-radius: 10px !important;
+}
+
+/* Fullscreen-out button: right side, lower with play/sound area */
+.kdrama-player.is-landscape .player-btn-fs {
+  top: auto !important;
+  left: auto !important;
+  right: 16px !important;
+
+  /* meka adjust karanna puluwan */
+  bottom: 86px !important;
+
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+  z-index: 99999 !important;
+}
+
+/* Vidstack default bottom controls keep lower, but not clipped */
+.kdrama-player.is-landscape .vds-controls {
+  padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+}
+
+.kdrama-player.is-landscape .vds-controls-group:last-child {
+  margin-bottom: 0 !important;
+}
+
+.kdrama-player.is-landscape .vds-time-slider {
+  margin-bottom: 4px !important;
+}
+
+/* prevent old vertical/side effects */
+.kdrama-player.is-landscape .player-controls-cluster {
+  transform: none !important;
+}
+
+.kdrama-player.is-landscape .player-btn-fs,
+.kdrama-player.is-landscape .player-btn-back {
+  transform: none !important;
+}
+
+/* hide quality button in landscape if it pushes CC/Aa */
+.kdrama-player.is-landscape .player-controls-cluster > div:first-child:not(:last-child) {
+  display: none !important;
+}
