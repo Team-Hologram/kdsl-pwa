@@ -86,8 +86,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }
         `}} />
         {/* iOS PWA full-screen */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="KDrama SL" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
+        <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+        <link rel="apple-touch-startup-image" href="/splash/splash-1170x2532.png" />
         {iosStartupImages.map((image) => (
           <link key={image.url} rel="apple-touch-startup-image" href={image.url} media={image.media} />
         ))}
