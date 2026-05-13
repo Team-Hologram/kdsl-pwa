@@ -260,7 +260,7 @@ export default function VideoPlayer({
           width: '100vw',
 
           height:
-            'calc(100dvh - max(10px, env(safe-area-inset-bottom)))',
+            'calc(100vh - max(10px, env(safe-area-inset-bottom)))',
 
           paddingBottom:
             'max(10px, env(safe-area-inset-bottom))',
@@ -310,7 +310,7 @@ export default function VideoPlayer({
         width: '100%',
 
         height:
-          'calc(100dvh - max(10px, env(safe-area-inset-bottom)))',
+          'calc(100vh - max(10px, env(safe-area-inset-bottom)))',
 
         background: '#000',
 
