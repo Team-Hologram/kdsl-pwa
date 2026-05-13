@@ -101,24 +101,11 @@ async function getFcmCapability(): Promise<FcmCapability> {
     };
   }
 
-  try {
-    const { isSupported } = await import('firebase/messaging');
-    const supported = await isSupported();
-    return {
-      canUseFcm: supported,
-      installedPwa,
-      notificationPermission,
-      reason: supported ? undefined : 'firebase-messaging-unsupported',
-    };
-  } catch (e) {
-    console.warn('[FCM] Support check failed:', e);
-    return {
-      canUseFcm: false,
-      installedPwa,
-      notificationPermission,
-      reason: 'firebase-messaging-import-failed',
-    };
-  }
+  return {
+    canUseFcm: true,
+    installedPwa,
+    notificationPermission,
+  };
 }
 
 export function useFCM() {
@@ -174,7 +161,19 @@ export function useFCM() {
     }
 
     try {
-      const { getMessaging, getToken } = await import('firebase/messaging');
+      const { getMessaging, getToken, isSupported } = await import('firebase/messaging');
+      const supported = await isSupported();
+      if (!supported) {
+        await saveDevice({
+          fcmToken: null,
+          fcmSupported: false,
+          installedPwa: currentCapability.installedPwa,
+          notificationPermission: Notification.permission,
+          unsupportedReason: 'firebase-messaging-unsupported',
+        });
+        return;
+      }
+
       const { default: app } = await import('@/lib/firebase');
       const serviceWorkerRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       const messaging = getMessaging(app);
