@@ -14,25 +14,25 @@ interface Props {
 function parseTime(t: string): number {
   const n = t.trim().replace(',', '.');
   const p = n.split(':').map(Number);
-  return p.length === 3 ? p[0]*3600+p[1]*60+p[2] : p.length === 2 ? p[0]*60+p[1] : 0;
+  return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : 0;
 }
 interface Cue { start: number; end: number; text: string }
 interface CueState { url: string; cues: Cue[] }
 
 function parseSubs(raw: string): Cue[] {
   const cues: Cue[] = [];
-  const lines = raw.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
     if (line.includes('-->')) {
       const ax = line.indexOf('-->');
       const start = parseTime(line.slice(0, ax));
-      const end = parseTime(line.slice(ax+3).trim().split(/\s+/)[0]);
+      const end = parseTime(line.slice(ax + 3).trim().split(/\s+/)[0]);
       const tl: string[] = [];
       i++;
       while (i < lines.length && lines[i].trim() !== '') {
-        const c = lines[i].replace(/<[^>]+>/g,'').trim();
+        const c = lines[i].replace(/<[^>]+>/g, '').trim();
         if (c) tl.push(c);
         i++;
       }
@@ -53,9 +53,9 @@ export default function VideoPlayer({
   const [isLandscape, setIsLandscape] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [showSubMenu, setShowSubMenu] = useState(false);
-  const defaultSub = subtitles.find(s => s.language==='si'||s.language==='sinhala') ?? subtitles[0] ?? null;
-  const [selectedSubUrl, setSelectedSubUrl] = useState<string|null|undefined>(undefined);
-  const [cueState, setCueState] = useState<CueState>({ url:'', cues:[] });
+  const defaultSub = subtitles.find(s => s.language === 'si' || s.language === 'sinhala') ?? subtitles[0] ?? null;
+  const [selectedSubUrl, setSelectedSubUrl] = useState<string | null | undefined>(undefined);
+  const [cueState, setCueState] = useState<CueState>({ url: '', cues: [] });
   const [currentTime, setCurrentTime] = useState(0);
   const [fontSize, setFontSize] = useState(17);
 
@@ -162,15 +162,15 @@ export default function VideoPlayer({
       {/* Back — .player-btn-back: top:3% left:2%, scales with container */}
       <button className="player-btn-back" onClick={e => { e.stopPropagation(); onBack(); }}>
         <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 12H5M12 5l-7 7 7 7"/>
+          <path d="M19 12H5M12 5l-7 7 7 7" />
         </svg>
       </button>
 
       {/* Fullscreen toggle — .player-btn-fs positions on the right side */}
       <button className="player-btn-fs" onClick={e => { e.stopPropagation(); setIsLandscape(v => !v); }}>
         {isLandscape
-          ? <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/></svg>
-          : <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          ? <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3" /></svg>
+          : <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
         }
       </button>
 
@@ -182,8 +182,8 @@ export default function VideoPlayer({
           <div style={{ position: 'relative' }}>
             <button className="player-ctrl-btn" onClick={() => { setShowQuality(v => !v); setShowSubMenu(false); }}>
               <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" strokeLinecap="round"/>
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" strokeLinecap="round" />
               </svg>
               {currentQuality}
             </button>
@@ -247,21 +247,53 @@ export default function VideoPlayer({
   // @container queries on media-player inside see 852×393 (landscape) → apply landscape CSS.
   if (isLandscape) {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 9999, overflow: 'hidden' }}>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+
+          width: '100vw',
+
+          height:
+            'calc(100dvh - max(10px, env(safe-area-inset-bottom)))',
+
+          paddingBottom:
+            'max(10px, env(safe-area-inset-bottom))',
+
+          background: '#000',
+
+          zIndex: 9999,
+
+          overflow: 'hidden',
+        }}
+      >
         <div
           onClick={dismiss}
           style={{
             position: 'absolute',
-            width: PH, height: PW,        // landscape dims
-            top: (PH - PW) / 2,           // center vertically
-            left: (PW - PH) / 2,          // center horizontally
-            transform: 'rotate(90deg)',
+
+            width: PH,
+            height: PW,
+
+            top: (PH - PW) / 2,
+            left: (PW - PH) / 2,
+
+            transform: 'rotate(90deg) scale(1.01)',
             transformOrigin: 'center center',
-            display: 'flex', flexDirection: 'column',
+
+            display: 'flex',
+            flexDirection: 'column',
+
             background: '#000',
-            // After 90deg CW rotation, CSS left maps to the physical portrait top.
+
+            overflow: 'hidden',
+
             paddingLeft: 'env(safe-area-inset-top)',
-            paddingRight: 0,
+
+            paddingTop: 'env(safe-area-inset-left)',
+
+            paddingBottom:
+              'max(10px, env(safe-area-inset-right))',
           }}
         >
           {playerEl}
@@ -275,11 +307,25 @@ export default function VideoPlayer({
     <div
       onClick={dismiss}
       style={{
-        position: 'relative', width: '100%', height: '100dvh',
-        background: '#000', overflow: 'hidden',
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 0,
-        display: 'flex', flexDirection: 'column',
+        position: 'relative',
+
+        width: '100%',
+
+        height:
+          'calc(100dvh - max(10px, env(safe-area-inset-bottom)))',
+
+        background: '#000',
+
+        overflow: 'hidden',
+
+        paddingTop:
+          'env(safe-area-inset-top)',
+
+        paddingBottom:
+          'max(10px, env(safe-area-inset-bottom))',
+
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {playerEl}
