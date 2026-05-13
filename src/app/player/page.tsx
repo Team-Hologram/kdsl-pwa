@@ -7,12 +7,7 @@ import { useMediaContext } from '@/context/MediaContext';
 import { Episode, VideoQuality, Subtitle } from '@/lib/types';
 import VideoPlayer from '@/components/VideoPlayer';
 import { fetchEpisodes } from '@/lib/mediaService';
-import { removeMonetagOnclickAd } from '@/lib/monetagAds';
-
-function stopPlayerAdEvent(event: React.SyntheticEvent) {
-  event.stopPropagation();
-  event.nativeEvent.stopImmediatePropagation();
-}
+import { blockPopupAdsWhileMounted, removeAllMonetagAdScripts } from '@/lib/monetagAds';
 
 function PlayerContent() {
   const searchParams = useSearchParams();
@@ -34,7 +29,8 @@ function PlayerContent() {
   const [offlineTitle, setOfflineTitle] = useState('');
 
   useEffect(() => {
-    removeMonetagOnclickAd();
+    removeAllMonetagAdScripts();
+    const restorePopupAds = blockPopupAdsWhileMounted();
 
     // Lock to portrait (if not fullscreen)
     const lockPortrait = async () => {
@@ -42,6 +38,7 @@ function PlayerContent() {
     };
     lockPortrait();
     return () => {
+      restorePopupAds();
       // On unmount, release orientation lock
       try { (screen.orientation as any).unlock?.(); } catch {}
     };
@@ -91,12 +88,7 @@ function PlayerContent() {
   // OFFLINE playback
   if (offlineKey && offlineVideoUrl) {
     return (
-      <div
-        onPointerDownCapture={stopPlayerAdEvent}
-        onClickCapture={stopPlayerAdEvent}
-        onTouchStartCapture={stopPlayerAdEvent}
-        style={{ background: '#000', minHeight: '100dvh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
-      >
+      <div style={{ background: '#000', minHeight: '100dvh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <VideoPlayer
           videoUrl={offlineVideoUrl}
           qualities={[{ quality: 'auto', url: offlineVideoUrl }]}
@@ -116,12 +108,7 @@ function PlayerContent() {
     const qs: VideoQuality[] = media.qualities ?? [];
     const url = qs[0]?.url ?? media.videoUrl ?? '';
     return (
-      <div
-        onPointerDownCapture={stopPlayerAdEvent}
-        onClickCapture={stopPlayerAdEvent}
-        onTouchStartCapture={stopPlayerAdEvent}
-        style={{ background: '#000', minHeight: '100dvh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
-      >
+      <div style={{ background: '#000', minHeight: '100dvh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <VideoPlayer
           videoUrl={url}
           qualities={qs}
@@ -138,12 +125,7 @@ function PlayerContent() {
   const qs = episode.qualities.length > 0 ? episode.qualities : [{ quality: 'auto' as const, url: episode.videoUrl }];
 
   return (
-    <div
-      onPointerDownCapture={stopPlayerAdEvent}
-      onClickCapture={stopPlayerAdEvent}
-      onTouchStartCapture={stopPlayerAdEvent}
-      style={{ background: '#000', minHeight: '100dvh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
-    >
+    <div style={{ background: '#000', minHeight: '100dvh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       <VideoPlayer
         videoUrl={episode.videoUrl}
         qualities={qs}

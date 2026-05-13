@@ -1,6 +1,5 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
 import './globals.css';
 import { MediaProvider } from '@/context/MediaContext';
 import { NotificationsProvider } from '@/context/NotificationsContext';
@@ -106,12 +105,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AppShell>{children}</AppShell>
           </NotificationsProvider>
         </MediaProvider>
-        <Script
-          id="monetag-in-page-push"
-          src="https://nap5k.com/tag.min.js"
-          data-zone="11000647"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   );
