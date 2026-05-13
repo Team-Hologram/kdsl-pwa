@@ -114,15 +114,36 @@ export default function DetailsPage() {
     const subtitleIds = ep.subtitles.map((s) => s.fileId).filter(Boolean) as string[];
     const name = isMovie ? media.title : `${media.title} - EP${ep.episodeNumber}`;
     const dlUrl = buildDownloadUrl(quality.fileId, subtitleIds, name);
-    // Trigger browser download
-    const a = document.createElement('a');
-    a.href = dlUrl;
-    a.download = `${name}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showToast(`Downloading ${name} (${quality.quality})…`);
     setQualityEpisode(null);
+    showToast(`Preparing ${name} (${quality.quality})...`);
+
+    try {
+      const response = await fetch(dlUrl);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: string } | null;
+        showToast(data?.error ?? 'Download failed');
+        return;
+      }
+
+      const blob = await response.blob();
+      if (!blob.type.includes('zip') && blob.size < 1024) {
+        showToast('Download failed');
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `${name}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
+      showToast(`Downloading ${name} (${quality.quality})...`);
+    } catch (error) {
+      console.error('[Details] download error', error);
+      showToast('Download failed');
+    }
   };
 
   return (

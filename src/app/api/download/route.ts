@@ -13,8 +13,24 @@ export const dynamic = 'force-dynamic';
 const B2_BASE_URL = (process.env.B2_BASE_URL ?? '').replace(/\/+$/, '');
 const B2_DIRECT_URL = (process.env.B2_DIRECT_URL ?? '').replace(/\/+$/, '');
 
-function b2Url(path: string) {
-  return `${B2_DIRECT_URL || B2_BASE_URL}/${path.replace(/^\/+/, '')}`;
+function b2Urls(path: string) {
+  if (/^https?:\/\//i.test(path)) return [path];
+
+  const cleanPath = path.replace(/^\/+/, '');
+  const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/');
+  return [B2_DIRECT_URL, B2_BASE_URL]
+    .filter((base, index, bases): base is string => Boolean(base) && bases.indexOf(base) === index)
+    .map((base) => `${base}/${encodedPath}`);
+}
+
+async function fetchB2(path: string) {
+  let lastResponse: Response | null = null;
+  for (const url of b2Urls(path)) {
+    const response = await fetch(url);
+    if (response.ok) return response;
+    lastResponse = response;
+  }
+  return lastResponse;
 }
 
 // Convert a Node.js Readable stream to a ReadableStream for Next.js response
@@ -52,8 +68,12 @@ export async function GET(request: NextRequest) {
   const videoId = searchParams.get('videoId');
   const filename = searchParams.get('filename') ?? 'episode';
 
-  if (!videoId || !B2_BASE_URL) {
-    return new NextResponse('Missing parameters', { status: 400 });
+  if (!videoId) {
+    return NextResponse.json({ error: 'Missing video id' }, { status: 400 });
+  }
+
+  if (!B2_BASE_URL && !B2_DIRECT_URL) {
+    return NextResponse.json({ error: 'B2 URL not configured' }, { status: 500 });
   }
 
   const subtitleIdsRaw = searchParams.get('subtitleIds') ?? '';
@@ -63,9 +83,9 @@ export async function GET(request: NextRequest) {
   ].map((id) => id.trim()).filter(Boolean);
 
   // Fetch the video stream from B2
-  const videoResponse = await fetch(b2Url(videoId));
-  if (!videoResponse.ok) {
-    return new NextResponse('Video not found', { status: 404 });
+  const videoResponse = await fetchB2(videoId);
+  if (!videoResponse?.ok) {
+    return NextResponse.json({ error: 'Video not found' }, { status: 404 });
   }
 
   // Create archiver ZIP stream
@@ -83,8 +103,8 @@ export async function GET(request: NextRequest) {
     const subExt = extensionFromPath(subId, 'vtt');
     const langMatch = subId.match(/([a-z]{2,3})\.(vtt|srt|ass|ssa)$/i);
     const lang = langMatch ? langMatch[1] : subId.split('/').pop()?.split('.')?.[0] ?? 'sub';
-    const subResponse = await fetch(b2Url(subId));
-    if (subResponse.ok) {
+    const subResponse = await fetchB2(subId);
+    if (subResponse?.ok) {
       archive.append(responseBodyToNodeStream(subResponse), {
         name: `subtitles/${safeZipPathPart(lang) || 'sub'}.${subExt}`,
       });
