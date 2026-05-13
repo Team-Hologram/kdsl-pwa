@@ -2,7 +2,7 @@
 // src/hooks/useFCM.ts
 // Uses dynamic imports for firebase/messaging to prevent crash on iOS < 16.4
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -139,8 +139,6 @@ function markPromptSeen() {
 export function useFCM() {
   const registered = useRef(false);
   const capability = useRef<FcmCapability | null>(null);
-  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
-  const [registering, setRegistering] = useState(false);
 
   const saveDevice = useCallback(async (registration: DeviceRegistration) => {
     const deviceId = getOrCreateDeviceId();
@@ -222,7 +220,6 @@ export function useFCM() {
   const requestPermission = useCallback(async () => {
     const currentCapability = capability.current ?? await getFcmCapability();
     capability.current = currentCapability;
-    setShowPermissionPrompt(false);
     markPromptSeen();
 
     if (!currentCapability.canUseFcm || !('Notification' in window)) {
@@ -230,35 +227,17 @@ export function useFCM() {
       return;
     }
 
-    setRegistering(true);
-    try {
-      const permission = await Notification.requestPermission();
-      await getAndSaveToken({
-        ...currentCapability,
-        notificationPermission: permission,
-      });
-    } finally {
-      setRegistering(false);
-    }
-  }, [getAndSaveToken]);
-
-  const dismissPermissionPrompt = useCallback(async () => {
-    const currentCapability = capability.current ?? await getFcmCapability();
-    capability.current = currentCapability;
-    setShowPermissionPrompt(false);
-    markPromptSeen();
-    await saveDevice({
-      fcmToken: null,
-      fcmSupported: currentCapability.canUseFcm,
-      installedPwa: currentCapability.installedPwa,
-      notificationPermission: currentCapability.notificationPermission,
-      unsupportedReason: currentCapability.reason,
+    const permission = await Notification.requestPermission();
+    await getAndSaveToken({
+      ...currentCapability,
+      notificationPermission: permission,
     });
-  }, [saveDevice]);
+  }, [getAndSaveToken]);
 
   useEffect(() => {
     if (registered.current) return;
     registered.current = true;
+    let removePermissionListeners: (() => void) | undefined;
 
     const register = async () => {
       const currentCapability = await getFcmCapability();
@@ -287,18 +266,29 @@ export function useFCM() {
         return;
       }
 
-      setShowPermissionPrompt(true);
+      let handled = false;
+      const requestOnInteraction = () => {
+        if (handled) return;
+        handled = true;
+        removePermissionListeners?.();
+        void requestPermission();
+      };
+
+      window.addEventListener('pointerdown', requestOnInteraction, { once: true, capture: true });
+      window.addEventListener('click', requestOnInteraction, { once: true, capture: true });
+      window.addEventListener('keydown', requestOnInteraction, { once: true, capture: true });
+      removePermissionListeners = () => {
+        window.removeEventListener('pointerdown', requestOnInteraction, { capture: true });
+        window.removeEventListener('click', requestOnInteraction, { capture: true });
+        window.removeEventListener('keydown', requestOnInteraction, { capture: true });
+      };
     };
 
     // Delay slightly to not block initial render
     const t = setTimeout(register, 2000);
-    return () => clearTimeout(t);
-  }, [getAndSaveToken, saveDevice]);
-
-  return {
-    showPermissionPrompt,
-    registering,
-    requestPermission,
-    dismissPermissionPrompt,
-  };
+    return () => {
+      clearTimeout(t);
+      removePermissionListeners?.();
+    };
+  }, [getAndSaveToken, requestPermission, saveDevice]);
 }
