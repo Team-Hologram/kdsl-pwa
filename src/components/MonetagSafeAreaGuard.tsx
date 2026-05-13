@@ -62,7 +62,7 @@ function applySafeAreaOffset() {
   const safeTop = readSafeAreaTop();
   if (safeTop <= 0) return;
 
-  const targetTop = safeTop + 8;
+  const targetTop = safeTop + 20;
   for (const element of Array.from(document.body.querySelectorAll('*'))) {
     if (!shouldMoveElement(element, safeTop)) continue;
     const rect = element.getBoundingClientRect();
