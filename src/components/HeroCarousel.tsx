@@ -4,6 +4,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Media } from '@/lib/types';
+import AdLoadingOverlay from '@/components/AdLoadingOverlay';
+import { preloadMonetagSdkAd, showMonetagSdkAd } from '@/lib/monetagAds';
 
 interface Props { mediaList: Media[]; }
 
@@ -11,6 +13,7 @@ export default function HeroCarousel({ mediaList }: Props) {
   const [idx, setIdx] = useState(0);
   const [prevIdx, setPrevIdx] = useState<number | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
   const router = useRouter();
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -37,10 +40,24 @@ export default function HeroCarousel({ mediaList }: Props) {
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [mediaList.length]);
 
+  useEffect(() => {
+    void preloadMonetagSdkAd('hero_play');
+  }, []);
+
   if (!mediaList.length) return null;
 
   const media = mediaList[idx];
   const prevMedia = prevIdx !== null ? mediaList[prevIdx] : null;
+
+  const handlePlay = async () => {
+    if (adLoading) return;
+
+    try {
+      await showMonetagSdkAd('hero_play', { onLoadingChange: setAdLoading });
+    } finally {
+      router.push(`/player?mediaId=${media.id}`);
+    }
+  };
 
   return (
     <div style={{ position: 'relative', height: 480, overflow: 'hidden' }}>
@@ -130,7 +147,7 @@ export default function HeroCarousel({ mediaList }: Props) {
           <button
             className="btn btn-primary"
             style={{ flex: 1, height: 46 }}
-            onClick={() => window.location.assign(`/player?mediaId=${media.id}`)}
+            onClick={() => { void handlePlay(); }}
           >
             <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             Play
@@ -169,6 +186,7 @@ export default function HeroCarousel({ mediaList }: Props) {
           ))}
         </div>
       )}
+      <AdLoadingOverlay visible={adLoading} />
     </div>
   );
 }
