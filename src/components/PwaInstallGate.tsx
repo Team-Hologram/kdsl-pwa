@@ -113,10 +113,10 @@ export default function PwaInstallGate({ children }: { children: ReactNode }) {
           gap: 14,
         }}>
           {[
-            ['1', 'Tap the Share button in Safari.'],
-            ['2', 'Choose Add to Home Screen.'],
-            ['3', 'Tap Add, then open KDrama SL from Home Screen.'],
-          ].map(([step, text]) => (
+            { step: '1', text: 'Tap the Share button in Safari.', icon: true },
+            { step: '2', text: 'Scroll & Choose Add to Home Screen.' },
+            { step: '3', text: 'Tap Add, then open KDrama SL from Home Screen.' },
+          ].map(({ step, text, icon }) => (
             <div key={step} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <span style={{
                 width: 28,
@@ -133,7 +133,16 @@ export default function PwaInstallGate({ children }: { children: ReactNode }) {
               }}>
                 {step}
               </span>
-              <span style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.35 }}>{text}</span>
+              <span style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.35, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {icon && (
+                  <svg width={20} height={20} fill="#ffffff" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff" aria-hidden="true" style={{ flexShrink: 0 }}>
+                    <path d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z" />
+                    <path d="M24 7h2v21h-2z" />
+                    <path d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z" />
+                  </svg>
+                )}
+                {text}
+              </span>
             </div>
           ))}
         </div>
