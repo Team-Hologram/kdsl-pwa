@@ -108,6 +108,14 @@ const BLOCKED_HTML = `<!DOCTYPE html>
       flex-shrink: 0;
     }
     .step-text { font-size: 15px; color: rgba(255,255,255,0.75); line-height: 1.5; }
+    .step-icon {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      vertical-align: middle;
+      display: inline-block;
+      margin-right: 7px;
+    }
   </style>
 </head>
 <body>
@@ -122,7 +130,7 @@ const BLOCKED_HTML = `<!DOCTYPE html>
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
-      <div class="step-text">Open Safari on your iPhone</div>
+      <div class="step-text"><img class="step-icon" src="/icons/safari.png" alt="Safari" />Open Safari on your iPhone</div>
     </div>
     <div class="step">
       <div class="step-num">2</div>
