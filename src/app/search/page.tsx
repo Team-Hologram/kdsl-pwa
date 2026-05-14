@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMediaContext } from '@/context/MediaContext';
 import MediaCard from '@/components/MediaCard';
 import AdLoadingOverlay from '@/components/AdLoadingOverlay';
-import { waitForMonetagOnclickAd } from '@/lib/monetagAds';
+import { loadMonetagOnclickAd, waitForMonetagOnclickWindow } from '@/lib/monetagAds';
 
 export default function SearchPage() {
   const { all, loading } = useMediaContext();
@@ -31,8 +31,8 @@ export default function SearchPage() {
 
     setAdLoading(true);
     try {
-      await waitForMonetagOnclickAd();
-      await new Promise((resolve) => window.setTimeout(resolve, 200));
+      loadMonetagOnclickAd();
+      await waitForMonetagOnclickWindow();
     } finally {
       setAdLoading(false);
       router.push(`/details/${mediaId}`);
@@ -128,7 +128,7 @@ export default function SearchPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
             {filtered.map((m) => (
-              <MediaCard key={m.id} media={m} onPress={() => { void openDetailsWithAd(m.id); }} />
+              <MediaCard key={m.id} media={m} showOnclickAd onPress={() => { void openDetailsWithAd(m.id); }} />
             ))}
           </div>
         )}
