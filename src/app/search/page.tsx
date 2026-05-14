@@ -1,12 +1,12 @@
 'use client';
 // src/app/search/page.tsx
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMediaContext } from '@/context/MediaContext';
 import MediaCard from '@/components/MediaCard';
 import AdLoadingOverlay from '@/components/AdLoadingOverlay';
-import { loadMonetagOnclickAd, waitForMonetagOnclickWindow } from '@/lib/monetagAds';
+import { preloadMonetagSdkAd, showMonetagSdkAd } from '@/lib/monetagAds';
 
 export default function SearchPage() {
   const { all, loading } = useMediaContext();
@@ -26,13 +26,16 @@ export default function SearchPage() {
     });
   }, [all, query, selectedGenre]);
 
-  const openDetailsWithAd = async (mediaId: string) => {
+  useEffect(() => {
+    void preloadMonetagSdkAd('search_card');
+  }, []);
+
+  const openDetailsWithSdkAd = async (mediaId: string) => {
     if (adLoading) return;
 
     setAdLoading(true);
     try {
-      loadMonetagOnclickAd();
-      await waitForMonetagOnclickWindow();
+      await showMonetagSdkAd('search_card');
     } finally {
       setAdLoading(false);
       router.push(`/details/${mediaId}`);
@@ -128,7 +131,7 @@ export default function SearchPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
             {filtered.map((m) => (
-              <MediaCard key={m.id} media={m} showOnclickAd onPress={() => { void openDetailsWithAd(m.id); }} />
+              <MediaCard key={m.id} media={m} onPress={() => { void openDetailsWithSdkAd(m.id); }} />
             ))}
           </div>
         )}
