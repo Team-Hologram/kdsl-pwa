@@ -1,5 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from 'next';
+import Image from 'next/image';
 import './globals.css';
 import { MediaProvider } from '@/context/MediaContext';
 import { NotificationsProvider } from '@/context/NotificationsContext';
@@ -71,7 +72,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-theme="dark">
       <head>
         {/* ── Polyfills for React 19 on older iOS Safari ──────────────────── */}
-        <script dangerouslySetInnerHTML={{ __html: `
+        <script dangerouslySetInnerHTML={{
+          __html: `
           // Promise.withResolvers — required by React 19, only in Safari 17.4+
           if (!Promise.withResolvers) {
             Promise.withResolvers = function() {
@@ -111,23 +113,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body>
-        {/* Portrait-lock overlay — hidden in portrait, shown in landscape via CSS */}
-        <div
-          className="portrait-lock-overlay"
-          style={{
-            display: 'none',
-            position: 'fixed', inset: 0, zIndex: 99999,
-            background: '#0A0E27',
-            flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 16,
-          }}
-        >
-          <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#00D9FF" strokeWidth={1.5}>
-            <rect x="4" y="2" width="16" height="20" rx="2"/>
-            <path d="M12 18h.01"/>
-          </svg>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>Please rotate to portrait</p>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>This app works in portrait mode only</p>
+        {/* Portrait-lock overlay: hidden in portrait, shown on mobile landscape via CSS. */}
+        <div className="portrait-lock-overlay" role="status" aria-live="polite">
+          <div className="portrait-lock-visual" aria-hidden="true">
+            <Image
+              className="portrait-lock-image"
+              src="/orientation/landscape-auto-rotation.jpg"
+              alt=""
+              width={800}
+              height={800}
+              priority
+            />
+            <span className="portrait-lock-arrow">→</span>
+            <Image
+              className="portrait-lock-image"
+              src="/orientation/portrait-rotation-target.jpg"
+              alt=""
+              width={800}
+              height={800}
+              priority
+            />
+          </div>
+          <p className="portrait-lock-title">Please On Portrait Orientation Lock</p>
         </div>
         <PwaInstallGate>
           <AppSettingsProvider>
