@@ -5,6 +5,8 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMediaContext } from '@/context/MediaContext';
 import MediaCard from '@/components/MediaCard';
+import AdLoadingOverlay from '@/components/AdLoadingOverlay';
+import { waitForMonetagOnclickAd } from '@/lib/monetagAds';
 
 export default function SearchPage() {
   const { all, loading } = useMediaContext();
@@ -12,6 +14,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [showFilter, setShowFilter] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
 
   const genres = useMemo(() => Array.from(new Set(all.flatMap((m) => m.genres))).sort(), [all]);
 
@@ -22,6 +25,19 @@ export default function SearchPage() {
       return matchQ && matchG;
     });
   }, [all, query, selectedGenre]);
+
+  const openDetailsWithAd = async (mediaId: string) => {
+    if (adLoading) return;
+
+    setAdLoading(true);
+    try {
+      await waitForMonetagOnclickAd();
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
+    } finally {
+      setAdLoading(false);
+      router.push(`/details/${mediaId}`);
+    }
+  };
 
   return (
     <div className="page-content" style={{ paddingTop: 0, height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -112,7 +128,7 @@ export default function SearchPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
             {filtered.map((m) => (
-              <MediaCard key={m.id} media={m} showOnclickAd onPress={() => router.push(`/details/${m.id}`)} />
+              <MediaCard key={m.id} media={m} onPress={() => { void openDetailsWithAd(m.id); }} />
             ))}
           </div>
         )}
@@ -168,6 +184,8 @@ export default function SearchPage() {
           </div>
         </>
       )}
+
+      <AdLoadingOverlay visible={adLoading} />
     </div>
   );
 }

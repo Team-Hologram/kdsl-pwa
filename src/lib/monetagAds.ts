@@ -7,6 +7,7 @@ const MONETAG_VIGNETTE_SRC = 'https://n6wxm.com/vignette.min.js';
 let onclickCleanupTimer: number | null = null;
 let popupBlockTimer: number | null = null;
 let popupOpenOriginal: typeof window.open | null = null;
+let onclickLoadPromise: Promise<boolean> | null = null;
 const popupOpenBlocker = (() => null) as typeof window.open;
 
 function restoreWindowOpen() {
@@ -65,12 +66,56 @@ export function loadMonetagOnclickAd() {
   }, 900);
 }
 
+export function waitForMonetagOnclickAd(timeoutMs = 2800) {
+  if (typeof document === 'undefined') return Promise.resolve(false);
+
+  const existing = document.getElementById(MONETAG_ONCLICK_SCRIPT_ID) as HTMLScriptElement | null;
+  if (existing) return Promise.resolve(true);
+  if (onclickLoadPromise) return onclickLoadPromise;
+
+  const scriptHost = [document.documentElement, document.body].filter(Boolean).pop();
+  if (!scriptHost) return Promise.resolve(false);
+
+  onclickLoadPromise = new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (loaded: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      if (!loaded) script.remove();
+      onclickLoadPromise = null;
+      resolve(loaded);
+    };
+
+    const script = document.createElement('script');
+    script.id = MONETAG_ONCLICK_SCRIPT_ID;
+    script.dataset.zone = '11000625';
+    script.src = MONETAG_ONCLICK_SRC;
+    script.async = true;
+    script.onload = () => finish(true);
+    script.onerror = () => finish(false);
+
+    const timeout = window.setTimeout(() => finish(false), timeoutMs);
+    scriptHost.appendChild(script);
+    cleanupAfterCurrentInteraction();
+
+    if (onclickCleanupTimer) window.clearTimeout(onclickCleanupTimer);
+    onclickCleanupTimer = window.setTimeout(() => {
+      removeMonetagOnclickAd();
+      onclickCleanupTimer = null;
+    }, Math.max(timeoutMs + 900, 1800));
+  });
+
+  return onclickLoadPromise;
+}
+
 export function removeMonetagOnclickAd() {
   if (typeof document === 'undefined') return;
   if (onclickCleanupTimer) {
     window.clearTimeout(onclickCleanupTimer);
     onclickCleanupTimer = null;
   }
+  onclickLoadPromise = null;
 
   document.getElementById(MONETAG_ONCLICK_SCRIPT_ID)?.remove();
   document
