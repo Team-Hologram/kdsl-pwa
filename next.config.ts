@@ -20,10 +20,10 @@ const nextConfig: NextConfig = {
     '@firebase/webchannel-wrapper',
     '@firebase/data-connect',
   ],
-  // Allow images from external domains via the proxy, but keep origins server-side
+  // Images are loaded as normal <img> tags from the public CDN.
   images: {
     remotePatterns: [],
-    unoptimized: true, // we proxy images ourselves
+    unoptimized: true,
   },
   // Headers for PWA / security
   async headers() {
@@ -45,22 +45,6 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains; preload",
           },
-        ],
-      },
-      {
-        // Lock down streaming proxy routes — prevents leaking real B2/R2 URLs.
-        // Image proxy has its own cacheable headers below.
-        source: "/api/proxy/:path(video|subtitle)",
-        headers: [
-          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
-          { key: "Cache-Control", value: "private, no-store" },
-        ],
-      },
-      {
-        source: "/api/proxy/image",
-        headers: [
-          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
-          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
         ],
       },
       {

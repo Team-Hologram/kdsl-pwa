@@ -1,6 +1,5 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from 'next';
-import Image from 'next/image';
 import './globals.css';
 import { MediaProvider } from '@/context/MediaContext';
 import { NotificationsProvider } from '@/context/NotificationsContext';
@@ -118,22 +117,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Portrait-lock overlay: hidden in portrait, shown on mobile landscape via CSS. */}
         <div className="portrait-lock-overlay" role="status" aria-live="polite">
           <div className="portrait-lock-visual" aria-hidden="true">
-            <Image
+            <img
               className="portrait-lock-image"
               src="/orientation/landscape-auto-rotation.jpg"
               alt=""
-              width={800}
-              height={800}
-              priority
             />
             <span className="portrait-lock-arrow">→</span>
-            <Image
+            <img
               className="portrait-lock-image"
               src="/orientation/portrait-rotation-target.jpg"
               alt=""
-              width={800}
-              height={800}
-              priority
             />
           </div>
           <p className="portrait-lock-title">Please On Portrait Orientation Lock</p>

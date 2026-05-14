@@ -7,11 +7,7 @@ const IMAGE_CACHE_MAX_ENTRIES = 250;
 function isCacheableImageRequest(request) {
   if (request.method !== 'GET') return false;
 
-  const url = new URL(request.url);
-  return url.origin === self.location.origin && (
-    url.pathname === '/api/proxy/image' ||
-    request.destination === 'image'
-  );
+  return request.destination === 'image';
 }
 
 async function trimCache(cacheName, maxEntries) {
@@ -32,7 +28,7 @@ self.addEventListener('fetch', (event) => {
     const network = fetch(event.request)
       .then((response) => {
         const contentType = response.headers.get('content-type') ?? '';
-        if (response.ok && contentType.startsWith('image/')) {
+        if ((response.ok && contentType.startsWith('image/')) || response.type === 'opaque') {
           cache.put(event.request, response.clone());
           trimCache(IMAGE_CACHE, IMAGE_CACHE_MAX_ENTRIES);
         }

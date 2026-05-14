@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const ICON_SRC = path.join(ROOT, 'public/icons/icon-source.png');
+const ICON_SRC = path.join(ROOT, 'scripts/assets/icon-source.png');
 const SPLASH_SRC = path.join(ROOT, 'public/splash/kdsl.png');
 
 // ── Icon sizes ─────────────────────────────────────────────────────────────

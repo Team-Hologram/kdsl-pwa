@@ -1,7 +1,8 @@
 // src/lib/proxyUrl.ts
-// Build client-side URLs that go through our API proxy
+// Build client-side media URLs. Public CDN URLs keep large media off Vercel.
 
-const PUBLIC_B2_CDN_URL = (process.env.NEXT_PUBLIC_B2_CDN_URL ?? '').replace(/\/+$/, '');
+const PUBLIC_B2_CDN_URL = (process.env.NEXT_PUBLIC_B2_CDN_URL ?? 'https://cdn.kdramasl.site/file/kdrama-sl').replace(/\/+$/, '');
+const PUBLIC_R2_BASE_URL = (process.env.NEXT_PUBLIC_R2_BASE_URL ?? 'https://images.kdramasl.site').replace(/\/+$/, '');
 
 function cleanFileId(fileId: string) {
   return fileId.replace(/^\/+/, '');
@@ -19,8 +20,7 @@ function encodePath(path: string) {
  */
 export function proxyVideoUrl(fileId: string | null | undefined): string {
   if (!fileId || fileId.trim() === '') return '';
-  if (PUBLIC_B2_CDN_URL) return `${PUBLIC_B2_CDN_URL}/${encodePath(fileId)}`;
-  return `/api/proxy/video?id=${encodeURIComponent(fileId)}`;
+  return `${PUBLIC_B2_CDN_URL}/${encodePath(fileId)}`;
 }
 
 /**
@@ -31,24 +31,23 @@ export function proxyVideoUrl(fileId: string | null | undefined): string {
  */
 export function proxySubtitleUrl(fileId: string | null | undefined): string {
   if (!fileId || fileId.trim() === '') return '';
-  if (PUBLIC_B2_CDN_URL) return `${PUBLIC_B2_CDN_URL}/${encodePath(fileId)}`;
-  return `/api/proxy/subtitle?id=${encodeURIComponent(fileId)}`;
+  return `${PUBLIC_B2_CDN_URL}/${encodePath(fileId)}`;
 }
 
 /**
- * Proxy an R2 thumbnail image filename
+ * Build a public R2 thumbnail image URL.
  * @param filename  e.g. "my-demon.jpg" (stored in Firestore)
  */
 export function proxyThumbnailUrl(filename: string | null | undefined): string {
   if (!filename || filename.trim() === '') return '';
-  return `/api/proxy/image?type=thumbnail&id=${encodeURIComponent(filename)}`;
+  return `${PUBLIC_R2_BASE_URL}/thumbnails/${encodePath(filename)}`;
 }
 
 /**
- * Proxy an R2 banner image filename
+ * Build a public R2 banner image URL.
  * @param filename  e.g. "my-demon-banner.jpg"
  */
 export function proxyBannerUrl(filename: string | null | undefined): string {
   if (!filename || filename.trim() === '') return '';
-  return `/api/proxy/image?type=banner&id=${encodeURIComponent(filename)}`;
+  return `${PUBLIC_R2_BASE_URL}/banners/${encodePath(filename)}`;
 }
