@@ -7,7 +7,7 @@ import { useMediaContext } from '@/context/MediaContext';
 import { useLocalUser } from '@/hooks/useLocalUser';
 import { Episode } from '@/lib/types';
 import { fetchEpisodes } from '@/lib/mediaService';
-import { loadMonetagOnclickAd } from '@/lib/monetagAds';
+import { loadMonetagVignetteAd, removeMonetagVignetteAd } from '@/lib/monetagAds';
 
 function DetailsSkeletonContent() {
   return (
@@ -41,6 +41,11 @@ export default function DetailsPage() {
   const mediaType = media?.type;
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
+
+  useEffect(() => {
+    loadMonetagVignetteAd();
+    return removeMonetagVignetteAd;
+  }, [id]);
 
   useEffect(() => {
     if (mediaType !== 'drama') return;
@@ -201,7 +206,7 @@ export default function DetailsPage() {
               </div>
 
               {/* Play button */}
-              <button onPointerDown={loadMonetagOnclickAd} onClick={() => handlePlay(ep)} style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}>
+              <button onClick={() => handlePlay(ep)} style={{ padding: 8, color: 'var(--primary)', flexShrink: 0 }}>
                 <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
                 </svg>
@@ -210,7 +215,6 @@ export default function DetailsPage() {
               {/* Download button */}
               {(ep.qualities.length > 0 || ep.videoFileId) && (
                 <button
-                  onPointerDown={loadMonetagOnclickAd}
                   onClick={() => handlePendingDownload(ep)}
                   aria-pressed={pendingDownloadId === ep.id}
                   style={{

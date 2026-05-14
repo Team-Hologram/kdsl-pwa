@@ -2,6 +2,8 @@ const MONETAG_ONCLICK_SCRIPT_ID = 'monetag-popunder-script';
 const MONETAG_ONCLICK_SRC = 'https://al5sm.com/tag.min.js';
 const MONETAG_IN_PAGE_PUSH_SCRIPT_ID = 'monetag-in-page-push';
 const MONETAG_IN_PAGE_PUSH_SRC = 'https://nap5k.com/tag.min.js';
+const MONETAG_VIGNETTE_SCRIPT_ID = 'monetag-vignette-script';
+const MONETAG_VIGNETTE_SRC = 'https://n6wxm.com/vignette.min.js';
 let onclickCleanupTimer: number | null = null;
 let popupBlockTimer: number | null = null;
 let popupOpenOriginal: typeof window.open | null = null;
@@ -85,9 +87,34 @@ export function removeMonetagInPagePushAd() {
     .forEach((script) => script.remove());
 }
 
+export function loadMonetagVignetteAd() {
+  if (typeof document === 'undefined') return;
+
+  removeMonetagVignetteAd();
+
+  const scriptHost = [document.documentElement, document.body].filter(Boolean).pop();
+  if (!scriptHost) return;
+
+  const script = document.createElement('script');
+  script.id = MONETAG_VIGNETTE_SCRIPT_ID;
+  script.dataset.zone = '11004290';
+  script.src = MONETAG_VIGNETTE_SRC;
+  scriptHost.appendChild(script);
+}
+
+export function removeMonetagVignetteAd() {
+  if (typeof document === 'undefined') return;
+
+  document.getElementById(MONETAG_VIGNETTE_SCRIPT_ID)?.remove();
+  document
+    .querySelectorAll<HTMLScriptElement>(`script[src="${MONETAG_VIGNETTE_SRC}"]`)
+    .forEach((script) => script.remove());
+}
+
 export function removeAllMonetagAdScripts() {
   removeMonetagOnclickAd();
   removeMonetagInPagePushAd();
+  removeMonetagVignetteAd();
 }
 
 export function suppressMonetagOnclickAds(durationMs = 1500) {

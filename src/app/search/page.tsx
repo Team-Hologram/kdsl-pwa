@@ -112,7 +112,7 @@ export default function SearchPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px' }}>
             {filtered.map((m) => (
-              <MediaCard key={m.id} media={m} showOnclickAd onPress={() => router.push(`/details/${m.id}`)} />
+              <MediaCard key={m.id} media={m} onPress={() => router.push(`/details/${m.id}`)} />
             ))}
           </div>
         )}
