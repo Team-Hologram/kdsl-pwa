@@ -15,10 +15,11 @@ interface MediaContextType {
   latest: Media[];
   loading: boolean;
   getById: (id: string) => Media | undefined;
+  refresh: () => Promise<void>;
 }
 
 const MediaContext = createContext<MediaContextType>({
-  all: [], trending: [], latest: [], loading: true, getById: () => undefined,
+  all: [], trending: [], latest: [], loading: true, getById: () => undefined, refresh: async () => {},
 });
 
 function deriveTrending(all: Media[]): Media[] {
@@ -151,9 +152,16 @@ export function MediaProvider({ children }: { children: ReactNode }) {
   }, [settings, settingsError, settingsLoading, settingsNotFound, apply]);
 
   const getById = useCallback((id: string) => all.find((m) => m.id === id), [all]);
+  const refresh = useCallback(async () => {
+    const list = await fetchAllMedia();
+    const savedAt = Date.now();
+    cachedSavedAtRef.current = savedAt;
+    didApplyRef.current = true;
+    apply(list, savedAt);
+  }, [apply]);
 
   return (
-    <MediaContext.Provider value={{ all, trending, latest, loading, getById }}>
+    <MediaContext.Provider value={{ all, trending, latest, loading, getById, refresh }}>
       {children}
     </MediaContext.Provider>
   );

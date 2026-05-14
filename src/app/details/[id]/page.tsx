@@ -50,7 +50,8 @@ export default function DetailsPage() {
   }, [id]);
 
   useEffect(() => {
-    void preloadMonetagSdkAd('details_action');
+    void preloadMonetagSdkAd('details_play');
+    void preloadMonetagSdkAd('details_download');
   }, [id]);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function DetailsPage() {
     url.searchParams.set('mediaId', id);
     if (!isMovie) url.searchParams.set('episodeId', ep.id);
     void runAfterSdkAd('details_play', () => {
-      window.location.assign(url.pathname + url.search);
+      router.push(url.pathname + url.search);
     });
   };
 
@@ -95,11 +96,9 @@ export default function DetailsPage() {
   const runAfterSdkAd = async (requestVar: string, action: () => void) => {
     if (adLoading) return;
 
-    setAdLoading(true);
     try {
-      await showMonetagSdkAd(requestVar);
+      await showMonetagSdkAd(requestVar, { onLoadingChange: setAdLoading });
     } finally {
-      setAdLoading(false);
       action();
     }
   };

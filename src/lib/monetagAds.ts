@@ -12,6 +12,7 @@ let onclickCleanupTimer: number | null = null;
 let popupBlockTimer: number | null = null;
 let popupOpenOriginal: typeof window.open | null = null;
 let sdkLoadPromise: Promise<boolean> | null = null;
+const preloadedSdkAds = new Set<string>();
 const popupOpenBlocker = (() => null) as typeof window.open;
 
 type MonetagSdkResult = {
@@ -187,27 +188,44 @@ export async function preloadMonetagSdkAd(requestVar: string) {
 
   try {
     await sdkFn({ type: 'preload', requestVar, timeout: 5, catchIfNoFeed: true });
+    preloadedSdkAds.add(requestVar);
     return true;
   } catch {
+    preloadedSdkAds.delete(requestVar);
     return false;
   }
 }
 
-export async function showMonetagSdkAd(requestVar: string) {
+export async function showMonetagSdkAd(
+  requestVar: string,
+  options: { onLoadingChange?: (loading: boolean) => void } = {},
+) {
   const loaded = await loadMonetagSdk();
   const sdkFn = loaded ? getMonetagSdkFunction() : null;
   if (!sdkFn) return false;
 
   try {
+    if (!preloadedSdkAds.has(requestVar)) {
+      options.onLoadingChange?.(true);
+      const preloaded = await preloadMonetagSdkAd(requestVar);
+      options.onLoadingChange?.(false);
+      if (!preloaded) return false;
+    }
+
     await sdkFn({
       type: 'end',
       requestVar,
       ymid: `${requestVar}_${Date.now()}`,
       catchIfNoFeed: true,
     });
+    preloadedSdkAds.delete(requestVar);
+    void preloadMonetagSdkAd(requestVar);
     return true;
   } catch {
+    preloadedSdkAds.delete(requestVar);
     return false;
+  } finally {
+    options.onLoadingChange?.(false);
   }
 }
 

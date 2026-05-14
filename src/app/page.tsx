@@ -1,7 +1,7 @@
 'use client';
 // src/app/page.tsx — Home Screen
 
-import { useMemo } from 'react';
+import { TouchEvent, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMediaContext } from '@/context/MediaContext';
 import { useNotifications } from '@/context/NotificationsContext';
@@ -49,9 +49,12 @@ function HomeSkeleton() {
 }
 
 export default function HomePage() {
-  const { all, trending, latest, loading } = useMediaContext();
+  const { all, trending, latest, loading, refresh } = useMediaContext();
   const { unreadCount } = useNotifications();
   const router = useRouter();
+  const touchStartY = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const heroMedia = latest.length > 0 ? latest : all.slice(0, 8);
 
@@ -64,6 +67,41 @@ export default function HomePage() {
     [...all].filter((m) => m.genres.some((g) => ['Action', 'Thriller'].includes(g)))
       .sort((a, b) => (b.createdAt ? Date.parse(b.createdAt) : 0) - (a.createdAt ? Date.parse(a.createdAt) : 0))
   , [all]);
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (window.scrollY > 0 || refreshing) return;
+    touchStartY.current = event.touches[0]?.clientY ?? 0;
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (window.scrollY > 0 || refreshing || touchStartY.current === 0) return;
+    const currentY = event.touches[0]?.clientY ?? 0;
+    const distance = Math.max(0, currentY - touchStartY.current);
+    if (distance > 0) {
+      setPullDistance(Math.min(86, distance * 0.45));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const shouldRefresh = pullDistance >= 58;
+    touchStartY.current = 0;
+
+    if (!shouldRefresh) {
+      setPullDistance(0);
+      return;
+    }
+
+    setPullDistance(58);
+    setRefreshing(true);
+    refresh()
+      .catch((error) => {
+        console.error('[Home] Pull refresh failed:', error);
+      })
+      .finally(() => {
+        setRefreshing(false);
+        setPullDistance(0);
+      });
+  };
 
   if (loading) return <HomeSkeleton />;
 
@@ -88,7 +126,50 @@ export default function HomePage() {
   }
 
   return (
-    <div className="page-content" style={{ paddingTop: 0 }}>
+    <div
+      className="page-content"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      style={{
+        paddingTop: 0,
+        transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined,
+        transition: refreshing ? 'transform 0.18s ease' : pullDistance === 0 ? 'transform 0.2s ease' : undefined,
+      }}
+    >
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 'calc(env(safe-area-inset-top) + 12px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 80,
+            width: 42,
+            height: 42,
+            borderRadius: '50%',
+            background: 'rgba(19,24,41,0.92)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 10px 28px rgba(0,0,0,0.32)',
+          }}
+        >
+          <div
+            className={refreshing ? 'spin' : undefined}
+            style={{
+              width: 22,
+              height: 22,
+              border: '2px solid rgba(255,255,255,0.22)',
+              borderTopColor: pullDistance >= 58 || refreshing ? 'var(--primary)' : 'rgba(255,255,255,0.45)',
+              borderRadius: '50%',
+              transform: refreshing ? undefined : `rotate(${pullDistance * 4}deg)`,
+            }}
+          />
+        </div>
+      )}
       {/* Notification bell — floating */}
       <button
         onClick={() => router.push('/notifications')}

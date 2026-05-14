@@ -33,11 +33,9 @@ export default function SearchPage() {
   const openDetailsWithSdkAd = async (mediaId: string) => {
     if (adLoading) return;
 
-    setAdLoading(true);
     try {
-      await showMonetagSdkAd('search_card');
+      await showMonetagSdkAd('search_card', { onLoadingChange: setAdLoading });
     } finally {
-      setAdLoading(false);
       router.push(`/details/${mediaId}`);
     }
   };
