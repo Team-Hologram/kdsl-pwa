@@ -1,7 +1,7 @@
 'use client';
 // src/app/details/[id]/page.tsx
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useMediaContext } from '@/context/MediaContext';
 import { useLocalUser } from '@/hooks/useLocalUser';
@@ -42,7 +42,7 @@ export default function DetailsPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     loadMonetagVignetteAd();
     return removeMonetagVignetteAd;
   }, [id]);

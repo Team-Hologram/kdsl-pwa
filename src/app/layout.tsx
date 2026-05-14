@@ -105,6 +105,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-touch-fullscreen" content="yes" />
         <link rel="apple-touch-icon" href="/icons/icon-180.png" />
         <link rel="apple-touch-startup-image" href="/splash/splash-1170x2532.png" />
+        <link rel="preconnect" href="https://n6wxm.com" />
+        <link rel="dns-prefetch" href="https://n6wxm.com" />
         {iosStartupImages.map((image) => (
           <link key={image.url} rel="apple-touch-startup-image" href={image.url} media={image.media} />
         ))}
