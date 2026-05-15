@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const [rating, setRating] = useState(0);
   const [ratingHover, setRatingHover] = useState(0);
   const [showRateModal, setShowRateModal] = useState(false);
+  const [ratingName, setRatingName] = useState('');
   const [ratingFeedback, setRatingFeedback] = useState('');
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
@@ -27,17 +28,32 @@ export default function ProfilePage() {
   };
 
   const handleSubmitRating = async () => {
-    if (!rating) return;
+    if (!rating || ratingSubmitting) return;
     setRatingSubmitting(true);
     try {
+      const nameToSave = ratingName.trim().slice(0, 80) || 'Anonymous';
+      const feedbackToSave = ratingFeedback.trim().slice(0, 600);
+
       await addDoc(collection(db, 'ratings'), {
-        rating, feedback: ratingFeedback, platform: 'pwa-ios',
-        createdAt: serverTimestamp(), ua: navigator.userAgent.slice(0, 200),
+        name: nameToSave,
+        feedback: feedbackToSave,
+        rating,
+        timestamp: serverTimestamp(),
       });
       setRatingDone(true);
-      setTimeout(() => { setShowRateModal(false); setRatingDone(false); setRating(0); setRatingFeedback(''); }, 1800);
-    } catch { showToast('Could not submit. Try again.'); }
-    setRatingSubmitting(false);
+      setTimeout(() => {
+        setShowRateModal(false);
+        setRatingDone(false);
+        setRating(0);
+        setRatingName('');
+        setRatingFeedback('');
+      }, 1800);
+    } catch (error) {
+      console.error('[Profile] rating submit failed:', error);
+      showToast('Could not submit. Try again.');
+    } finally {
+      setRatingSubmitting(false);
+    }
   };
 
   const menuItems = [
@@ -130,6 +146,15 @@ export default function ProfilePage() {
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Rate KDrama SL</h2>
                 <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>How would you rate your experience?</p>
 
+                <input
+                  className="input"
+                  style={{ marginBottom: 16 }}
+                  placeholder="Your name (optional)"
+                  value={ratingName}
+                  maxLength={80}
+                  onChange={(e) => setRatingName(e.target.value)}
+                />
+
                 {/* Stars */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 20 }}>
                   {[1,2,3,4,5].map((s) => (
@@ -151,6 +176,7 @@ export default function ProfilePage() {
                     style={{ marginBottom: 16, minHeight: 80, resize: 'none' }}
                     placeholder="Add a comment (optional)..."
                     value={ratingFeedback}
+                    maxLength={600}
                     onChange={(e) => setRatingFeedback(e.target.value)}
                   />
                 )}
