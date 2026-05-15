@@ -106,7 +106,7 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', paddingBottom: 8 }}>KDrama SL PWA · Built with ❤️</p>
+      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', paddingBottom: 8 }}>KDrama SL · Built with ❤️</p>
 
       {/* Rate Modal */}
       {showRateModal && (

@@ -20,15 +20,15 @@ export default function AboutPage() {
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px', textAlign: 'left', marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>About</h2>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-            KDrama SL is the go-to platform for Sri Lankan K-drama fans. Stream and download your favourite Korean dramas and movies with Sinhala and English subtitles, completely free.
+            KDrama SL is the go-to platform for Sri Lankan K-drama fans. Stream and download your favourite Korean dramas with Sinhala and English subtitles, completely free.
           </p>
         </div>
 
         {[
           { label: 'Platform', value: 'iOS PWA (iPhone)' },
-          { label: 'Content', value: 'Korean Dramas & Movies' },
+          { label: 'Content', value: 'Korean Dramas' },
           { label: 'Subtitles', value: 'Sinhala & English' },
-          { label: 'Firebase Project', value: 'kdrama-sl' },
+          { label: 'Company', value: 'KDrama SL' },
         ].map(({ label, value }) => (
           <div key={label} style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
